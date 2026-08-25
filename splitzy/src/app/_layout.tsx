@@ -1,18 +1,35 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { Stack } from "expo-router";
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { useAuthState } from "@/hooks/use-auth-state";
 
-SplashScreen.preventAutoHideAsync();
+export default function RootLayout() {
+  const { user, initializing } = useAuthState();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  if (initializing) {
+    return null;
+  }
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <Stack>
+      <Stack.Protected guard={!user}>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      </Stack.Protected>
+
+      <Stack.Protected guard={!!user}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="add-friend" options={{ presentation: "modal", title: "Add Friend" }} />
+        <Stack.Screen
+          name="create-group"
+          options={{ presentation: "modal", title: "Create Group" }}
+        />
+        <Stack.Screen
+          name="add-expense"
+          options={{ presentation: "modal", title: "Add Expense" }}
+        />
+        <Stack.Screen name="friend/[uid]" options={{ title: "Friend" }} />
+        <Stack.Screen name="group/[groupId]" options={{ title: "Group" }} />
+        <Stack.Screen name="expense/[expenseId]" options={{ title: "Expense" }} />
+      </Stack.Protected>
+    </Stack>
   );
 }
