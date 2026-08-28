@@ -52,6 +52,28 @@ export type ActivityEntry =
       groupId: string | null;
       groupName: string | null;
       createdAt: Date | null;
+    }
+  | {
+      id: string;
+      type: "group_member_added";
+      actorUid: string;
+      actorName: string;
+      groupId: string;
+      groupName: string;
+      memberUid: string;
+      memberName: string;
+      createdAt: Date | null;
+    }
+  | {
+      id: string;
+      type: "group_member_removed";
+      actorUid: string;
+      actorName: string;
+      groupId: string;
+      groupName: string;
+      memberUid: string;
+      memberName: string;
+      createdAt: Date | null;
     };
 
 export function addFriendAddedActivity(batch: WriteBatch, actor: UserProfile, friend: UserProfile) {
@@ -136,6 +158,44 @@ export function addExpenseEditedActivity(
     amountCents: expense.amountCents,
     groupId: expense.groupId,
     groupName: expense.groupName ?? null,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export function addGroupMemberAddedActivity(
+  batch: WriteBatch,
+  actor: UserProfile,
+  info: { groupId: string; groupName: string; memberUid: string; memberName: string; participants: string[] },
+) {
+  const ref = doc(collection(db, "activity"));
+  batch.set(ref, {
+    type: "group_member_added",
+    participants: info.participants,
+    actorUid: actor.uid,
+    actorName: actor.displayName || actor.email,
+    groupId: info.groupId,
+    groupName: info.groupName,
+    memberUid: info.memberUid,
+    memberName: info.memberName,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export function addGroupMemberRemovedActivity(
+  batch: WriteBatch,
+  actor: UserProfile,
+  info: { groupId: string; groupName: string; memberUid: string; memberName: string; participants: string[] },
+) {
+  const ref = doc(collection(db, "activity"));
+  batch.set(ref, {
+    type: "group_member_removed",
+    participants: info.participants,
+    actorUid: actor.uid,
+    actorName: actor.displayName || actor.email,
+    groupId: info.groupId,
+    groupName: info.groupName,
+    memberUid: info.memberUid,
+    memberName: info.memberName,
     createdAt: serverTimestamp(),
   });
 }

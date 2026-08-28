@@ -39,6 +39,20 @@ function describeActivity(entry: ActivityEntry, currentUid: string) {
     const where = entry.groupName ? ` in ${entry.groupName}` : "";
     return `${who} edited "${entry.description}" (${formatCents(entry.amountCents)})${where}`;
   }
+  if (entry.type === "group_member_added") {
+    const who = entry.actorUid === currentUid ? "You" : entry.actorName;
+    if (entry.memberUid === currentUid) {
+      return `${who === "You" ? "You" : entry.actorName} added you to ${entry.groupName}`;
+    }
+    return `${who} added ${entry.memberName} to ${entry.groupName}`;
+  }
+  if (entry.type === "group_member_removed") {
+    const who = entry.actorUid === currentUid ? "You" : entry.actorName;
+    if (entry.memberUid === currentUid) {
+      return `${who === "You" ? "You" : entry.actorName} removed you from ${entry.groupName}`;
+    }
+    return `${who} removed ${entry.memberName} from ${entry.groupName}`;
+  }
   return "Activity";
 }
 
@@ -46,6 +60,8 @@ function activityIcon(entry: ActivityEntry) {
   if (entry.type === "signed_up") return "how-to-reg";
   if (entry.type === "expense_edited") return "edit";
   if (entry.type === "group_created") return "group";
+  if (entry.type === "group_member_added") return "person-add";
+  if (entry.type === "group_member_removed") return "person-remove";
   if (entry.type === "expense_added") return "receipt-long";
   return "people";
 }
@@ -59,6 +75,8 @@ function getActivityRoute(entry: ActivityEntry, currentUid: string): string | nu
       return `/friend/${otherUid}`;
     }
     case "group_created":
+    case "group_member_added":
+    case "group_member_removed":
       return `/group/${entry.groupId}`;
     case "expense_added":
     case "expense_edited":
@@ -76,8 +94,6 @@ export default function ActivityScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Activity</Text>
-
       {!loading && entries.length === 0 && (
         <View style={styles.empty}>
           <MaterialIcons name="history" size={64} color="#bbb" />
@@ -125,13 +141,8 @@ export default function ActivityScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 48,
+    paddingTop: 60,
     paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    marginBottom: 16,
   },
   empty: {
     alignItems: "center",

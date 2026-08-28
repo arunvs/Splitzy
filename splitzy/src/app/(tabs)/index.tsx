@@ -1,8 +1,11 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { AddExpenseFab } from "@/components/add-expense-fab";
+import { SearchField } from "@/components/search-field";
+import { cardBorder } from "@/constants/shadows";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useFriends } from "@/hooks/use-friends";
 import { useMyExpenses } from "@/hooks/use-my-expenses";
@@ -15,6 +18,7 @@ export default function FriendsScreen() {
   const { friends, loading } = useFriends(user?.uid);
   const { expenses } = useMyExpenses(user?.uid);
   const [search, setSearch] = useState("");
+  const [searchExpanded, setSearchExpanded] = useState(false);
 
   const hasFriends = friends.length > 0;
 
@@ -37,8 +41,6 @@ export default function FriendsScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Friends</Text>
-
       {!loading && !hasFriends && (
         <View style={styles.empty}>
           <MaterialIcons name="people-outline" size={64} color="#bbb" />
@@ -68,23 +70,20 @@ export default function FriendsScreen() {
             </View>
           )}
 
-          <Pressable style={styles.addRow} onPress={() => router.push("/add-friend")}>
-            <View style={styles.addIconCircle}>
-              <MaterialIcons name="person-add" size={20} color="#2f6feb" />
+          <View style={styles.headerRow}>
+            <View style={styles.searchSlot}>
+              <SearchField
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search friends"
+                onExpandedChange={setSearchExpanded}
+              />
             </View>
-            <Text style={styles.addRowText}>Add friend</Text>
-            <MaterialIcons name="chevron-right" size={22} color="#bbb" />
-          </Pressable>
-
-          <View style={styles.searchRow}>
-            <MaterialIcons name="search" size={20} color="#888" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search friends"
-              value={search}
-              onChangeText={setSearch}
-              autoCapitalize="none"
-            />
+            {!searchExpanded && (
+              <Pressable style={styles.addIconButton} onPress={() => router.push("/add-friend")}>
+                <MaterialIcons name="person-add" size={22} color="#2f6feb" />
+              </Pressable>
+            )}
           </View>
 
           <FlatList
@@ -99,7 +98,7 @@ export default function FriendsScreen() {
               const balance = balances[item.uid] ?? 0;
               return (
                 <Pressable
-                  style={styles.friendRow}
+                  style={({ pressed }) => [styles.friendRow, pressed && styles.friendRowPressed]}
                   onPress={() => router.push(`/friend/${item.uid}`)}>
                   <MaterialIcons name="account-circle" size={40} color="#888" />
                   <View style={styles.friendInfo}>
@@ -123,6 +122,8 @@ export default function FriendsScreen() {
           />
         </>
       )}
+
+      <AddExpenseFab />
     </View>
   );
 }
@@ -130,13 +131,8 @@ export default function FriendsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 48,
+    paddingTop: 60,
     paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    marginBottom: 16,
   },
   empty: {
     flex: 1,
@@ -185,41 +181,22 @@ const styles = StyleSheet.create({
   youOwe: {
     color: "#d32f2f",
   },
-  addRow: {
+  headerRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  addIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  searchSlot: {
+    flex: 1,
+  },
+  addIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#e8effd",
     alignItems: "center",
     justifyContent: "center",
-  },
-  addRowText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#2f6feb",
-  },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#f2f2f2",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 10,
   },
   noResults: {
     textAlign: "center",
@@ -227,13 +204,21 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   list: {
-    gap: 4,
+    gap: 10,
+    paddingBottom: 8,
   },
   friendRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    ...cardBorder,
+  },
+  friendRowPressed: {
+    backgroundColor: "#f7f9fd",
   },
   friendInfo: {
     flex: 1,

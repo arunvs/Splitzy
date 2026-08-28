@@ -65,7 +65,12 @@ export default function GroupDetailScreen() {
         </Pressable>
       </View>
 
-      <Text style={styles.sectionLabel}>Members</Text>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionLabel}>Members</Text>
+        <Pressable onPress={() => router.push({ pathname: "/manage-members", params: { groupId } })}>
+          <Text style={styles.manageLink}>Manage</Text>
+        </Pressable>
+      </View>
       {otherMembers.map((uid) => {
         const profile = group.memberProfiles[uid];
         const balance = balances[uid] ?? 0;
@@ -180,6 +185,16 @@ const styles = StyleSheet.create({
     color: "#666",
     marginTop: 16,
     marginBottom: 8,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  manageLink: {
+    color: "#2f6feb",
+    fontWeight: "600",
+    fontSize: 13,
   },
   memberRow: {
     flexDirection: "row",

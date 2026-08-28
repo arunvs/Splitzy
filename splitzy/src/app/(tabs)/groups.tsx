@@ -1,8 +1,11 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { AddExpenseFab } from "@/components/add-expense-fab";
+import { SearchField } from "@/components/search-field";
+import { cardBorder } from "@/constants/shadows";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useGroups } from "@/hooks/use-groups";
 import { useMyExpenses } from "@/hooks/use-my-expenses";
@@ -14,6 +17,8 @@ export default function GroupsScreen() {
   const { user } = useAuthState();
   const { groups, loading } = useGroups(user?.uid);
   const { expenses } = useMyExpenses(user?.uid);
+  const [search, setSearch] = useState("");
+  const [searchExpanded, setSearchExpanded] = useState(false);
 
   const hasGroups = groups.length > 0;
 
@@ -27,10 +32,18 @@ export default function GroupsScreen() {
     return result;
   }, [groups, expenses, user]);
 
+  const filteredGroups = useMemo(() => {
+    const normalized = search.trim().toLowerCase();
+    if (!normalized) return groups;
+    return groups.filter(
+      (group) =>
+        group.name.toLowerCase().includes(normalized) ||
+        group.description.toLowerCase().includes(normalized),
+    );
+  }, [groups, search]);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Groups</Text>
-
       {!loading && !hasGroups && (
         <View style={styles.empty}>
           <MaterialIcons name="group" size={64} color="#bbb" />
@@ -46,23 +59,35 @@ export default function GroupsScreen() {
 
       {hasGroups && (
         <>
-          <Pressable style={styles.addRow} onPress={() => router.push("/create-group")}>
-            <View style={styles.addIconCircle}>
-              <MaterialIcons name="group-add" size={20} color="#2f6feb" />
+          <View style={styles.headerRow}>
+            <View style={styles.searchSlot}>
+              <SearchField
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search groups"
+                onExpandedChange={setSearchExpanded}
+              />
             </View>
-            <Text style={styles.addRowText}>Create group</Text>
-            <MaterialIcons name="chevron-right" size={22} color="#bbb" />
-          </Pressable>
+            {!searchExpanded && (
+              <Pressable style={styles.addIconButton} onPress={() => router.push("/create-group")}>
+                <MaterialIcons name="group-add" size={22} color="#2f6feb" />
+              </Pressable>
+            )}
+          </View>
 
           <FlatList
-            data={groups}
+            data={filteredGroups}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
+            keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={
+              <Text style={styles.noResults}>No groups match &quot;{search}&quot;.</Text>
+            }
             renderItem={({ item }) => {
               const balance = groupBalances[item.id] ?? 0;
               return (
                 <Pressable
-                  style={styles.groupRow}
+                  style={({ pressed }) => [styles.groupRow, pressed && styles.groupRowPressed]}
                   onPress={() => router.push(`/group/${item.id}`)}>
                   <View style={styles.groupIconCircle}>
                     <MaterialIcons name="group" size={24} color="#2f6feb" />
@@ -91,6 +116,8 @@ export default function GroupsScreen() {
           />
         </>
       )}
+
+      <AddExpenseFab />
     </View>
   );
 }
@@ -98,13 +125,8 @@ export default function GroupsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 48,
+    paddingTop: 60,
     paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    marginBottom: 16,
   },
   empty: {
     flex: 1,
@@ -135,37 +157,44 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
   },
-  addRow: {
+  headerRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  addIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  searchSlot: {
+    flex: 1,
+  },
+  addIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#e8effd",
     alignItems: "center",
     justifyContent: "center",
   },
-  addRowText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#2f6feb",
+  noResults: {
+    textAlign: "center",
+    color: "#888",
+    marginTop: 24,
   },
   list: {
-    gap: 4,
+    gap: 10,
+    paddingBottom: 8,
   },
   groupRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    ...cardBorder,
+  },
+  groupRowPressed: {
+    backgroundColor: "#f7f9fd",
   },
   groupIconCircle: {
     width: 40,

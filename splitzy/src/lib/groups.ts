@@ -1,6 +1,6 @@
-import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
+import { arrayRemove, arrayUnion, collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
 
-import { addGroupCreatedActivity } from "./activity";
+import { addGroupCreatedActivity, addGroupMemberAddedActivity, addGroupMemberRemovedActivity } from "./activity";
 import { db } from "./firebase";
 import type { UserProfile } from "./types";
 
@@ -47,4 +47,55 @@ export async function createGroup(
 
   await batch.commit();
   return groupRef.id;
+}
+
+// Any current member can add/remove any other member — deliberately no
+// approval step, matching how adding a friend or creating a group already
+// works instantly in this app. Removing someone only drops them from the
+// active `members` array; their `memberProfiles` entry is left alone so
+// past expenses they were part of still resolve a name correctly.
+export async function addGroupMember(
+  group: Group,
+  actor: UserProfile,
+  member: UserProfile,
+): Promise<void> {
+  const batch = writeBatch(db);
+  const groupRef = doc(db, "groups", group.id);
+  batch.update(groupRef, {
+    members: arrayUnion(member.uid),
+    [`memberProfiles.${member.uid}`]: { email: member.email, displayName: member.displayName },
+  });
+
+  addGroupMemberAddedActivity(batch, actor, {
+    groupId: group.id,
+    groupName: group.name,
+    memberUid: member.uid,
+    memberName: member.displayName || member.email,
+    participants: [...group.members, member.uid],
+  });
+
+  await batch.commit();
+}
+
+export async function removeGroupMember(
+  group: Group,
+  actor: UserProfile,
+  memberUid: string,
+  memberName: string,
+): Promise<void> {
+  const batch = writeBatch(db);
+  const groupRef = doc(db, "groups", group.id);
+  batch.update(groupRef, {
+    members: arrayRemove(memberUid),
+  });
+
+  addGroupMemberRemovedActivity(batch, actor, {
+    groupId: group.id,
+    groupName: group.name,
+    memberUid,
+    memberName,
+    participants: group.members,
+  });
+
+  await batch.commit();
 }

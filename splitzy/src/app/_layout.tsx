@@ -26,9 +26,17 @@ export default function RootLayout() {
           name="add-expense"
           options={{ presentation: "modal", title: "Add Expense" }}
         />
+        <Stack.Screen
+          name="select-expense-target"
+          options={{ presentation: "modal", title: "Add Expense" }}
+        />
         <Stack.Screen name="friend/[uid]" options={{ title: "Friend" }} />
         <Stack.Screen name="group/[groupId]" options={{ title: "Group" }} />
         <Stack.Screen name="expense/[expenseId]" options={{ title: "Expense" }} />
+        <Stack.Screen
+          name="manage-members"
+          options={{ presentation: "modal", title: "Manage Members" }}
+        />
       </Stack.Protected>
     </Stack>
   );
