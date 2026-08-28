@@ -3,6 +3,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { centeredContent } from "@/constants/layout";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useFriends } from "@/hooks/use-friends";
 import { useGroups } from "@/hooks/use-groups";
@@ -124,6 +125,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 24,
+    ...centeredContent,
   },
   emptyText: {
     color: "#888",

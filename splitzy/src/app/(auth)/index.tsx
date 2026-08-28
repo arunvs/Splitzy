@@ -4,6 +4,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { centeredContent } from "@/constants/layout";
 import { getAuthErrorMessage } from "@/lib/auth-errors";
 import { auth } from "@/lib/firebase";
 
@@ -82,6 +83,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
     gap: 12,
+    ...centeredContent,
   },
   title: {
     fontSize: 28,

@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { centeredContent } from "@/constants/layout";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useFriends } from "@/hooks/use-friends";
 import { createGroup } from "@/lib/groups";
@@ -133,6 +134,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 24,
     gap: 12,
+    ...centeredContent,
   },
   input: {
     borderWidth: 1,

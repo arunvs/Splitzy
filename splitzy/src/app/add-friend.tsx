@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { centeredContent } from "@/constants/layout";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { addFriend, findUserByEmail, isAlreadyFriend, type UserProfile } from "@/lib/friends";
 import { shareInvite } from "@/lib/invite";
@@ -139,6 +140,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 24,
+    ...centeredContent,
   },
   label: {
     fontSize: 14,

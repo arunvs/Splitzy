@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { DateField } from "@/components/date-field";
+import { centeredContent } from "@/constants/layout";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useFriends } from "@/hooks/use-friends";
 import { useGroups } from "@/hooks/use-groups";
@@ -362,6 +363,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 24,
     gap: 12,
+    ...centeredContent,
   },
   input: {
     borderWidth: 1,
