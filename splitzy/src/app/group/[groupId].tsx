@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { NotFound } from "@/components/not-found";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useGroups } from "@/hooks/use-groups";
 import { useMyExpenses } from "@/hooks/use-my-expenses";
@@ -13,7 +14,7 @@ export default function GroupDetailScreen() {
   const router = useRouter();
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const { user } = useAuthState();
-  const { groups } = useGroups(user?.uid);
+  const { groups, loading: groupsLoading } = useGroups(user?.uid);
   const { expenses, loading } = useMyExpenses(user?.uid);
 
   const group = groups.find((g) => g.id === groupId);
@@ -30,12 +31,12 @@ export default function GroupDetailScreen() {
 
   const totalBalance = sumBalances(balances);
 
+  if (!groupsLoading && !group) {
+    return <NotFound />;
+  }
+
   if (!group) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.emptyText}>Group not found.</Text>
-      </View>
-    );
+    return null;
   }
 
   const otherMembers = group.members.filter((uid) => uid !== user?.uid);

@@ -60,6 +60,15 @@ function mapActivityDoc(docSnap: QueryDocumentSnapshot): ActivityEntry {
         groupId: data.groupId ?? null,
         groupName: data.groupName ?? null,
       };
+    case "expense_deleted":
+      return {
+        ...base,
+        type: "expense_deleted",
+        description: data.description,
+        amountCents: data.amountCents,
+        groupId: data.groupId ?? null,
+        groupName: data.groupName ?? null,
+      };
     case "group_member_added":
       return {
         ...base,

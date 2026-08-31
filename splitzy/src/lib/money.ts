@@ -1,4 +1,4 @@
-export type SplitType = "equal" | "percentage" | "exact";
+export type SplitType = "equal" | "percentage" | "exact" | "settlement";
 
 export function formatCents(cents: number): string {
   const sign = cents < 0 ? "-" : "";

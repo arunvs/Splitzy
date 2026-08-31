@@ -1,9 +1,10 @@
 import { Platform, Share } from "react-native";
 
 const STORE_LINKS = {
-  android: "https://play.google.com/store",
-  ios: "https://apps.apple.com/",
-  web: "https://oryn.online/splitzy/login",
+  android:
+    "https://play.google.com/store/apps/details?id=oryn.online.splitzy&hl=en-US&ah=34ZCAeHn7fbRNSu4WUXUYzED3cM",
+  // No iOS link yet — not released there.
+  web: "https://splitzy.oryn.online",
 };
 
 function buildInviteMessage() {
@@ -11,7 +12,6 @@ function buildInviteMessage() {
     "Join me on Splitzy to split expenses easily!",
     "",
     `Android: ${STORE_LINKS.android}`,
-    `iOS: ${STORE_LINKS.ios}`,
     `Web: ${STORE_LINKS.web}`,
   ].join("\n");
 }

@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { NotFound } from "@/components/not-found";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useFriends } from "@/hooks/use-friends";
 import { useGroups } from "@/hooks/use-groups";
@@ -14,7 +15,7 @@ export default function FriendDetailScreen() {
   const router = useRouter();
   const { uid: friendUid } = useLocalSearchParams<{ uid: string }>();
   const { user } = useAuthState();
-  const { friends } = useFriends(user?.uid);
+  const { friends, loading: friendsLoading } = useFriends(user?.uid);
   const { groups } = useGroups(user?.uid);
   const { expenses, loading } = useMyExpenses(user?.uid);
 
@@ -29,6 +30,10 @@ export default function FriendDetailScreen() {
     if (!user) return 0;
     return computeBalancesByOtherUser(sharedExpenses, user.uid)[friendUid] ?? 0;
   }, [sharedExpenses, user, friendUid]);
+
+  if (!friendsLoading && !friend) {
+    return <NotFound />;
+  }
 
   return (
     <View style={styles.container}>
@@ -45,12 +50,25 @@ export default function FriendDetailScreen() {
           </Text>
         )}
 
-        <Pressable
-          style={styles.addButton}
-          onPress={() => router.push({ pathname: "/add-expense", params: { friendUid } })}>
-          <MaterialIcons name="add" size={18} color="#fff" />
-          <Text style={styles.addButtonText}>Add expense</Text>
-        </Pressable>
+        <View style={styles.headerButtons}>
+          <Pressable
+            style={styles.addButton}
+            onPress={() => router.push({ pathname: "/add-expense", params: { friendUid } })}>
+            <MaterialIcons name="add" size={18} color="#fff" />
+            <Text style={styles.addButtonText}>Add expense</Text>
+          </Pressable>
+
+          {balance !== 0 && friend && (
+            <Pressable
+              style={styles.settleButton}
+              onPress={() =>
+                router.push({ pathname: "/settle-up", params: { friendUid, balance: String(balance) } })
+              }>
+              <MaterialIcons name="swap-horiz" size={18} color="#2f6feb" />
+              <Text style={styles.settleButtonText}>Settle up</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {!loading && sharedExpenses.length === 0 && (
@@ -69,16 +87,28 @@ export default function FriendDetailScreen() {
           const mySplit = item.splits[user?.uid ?? ""] ?? 0;
           const expenseGroup = item.groupId ? groups.find((g) => g.id === item.groupId) : undefined;
           const dateLabel = (item.expenseDate ?? item.createdAt)?.toLocaleDateString();
+          const isSettlement = item.splitType === "settlement";
           return (
             <Pressable
               style={styles.expenseRow}
               onPress={() => router.push(`/expense/${item.id}`)}>
-              <MaterialIcons name="receipt-long" size={24} color="#2f6feb" />
+              <MaterialIcons
+                name={isSettlement ? "swap-horiz" : "receipt-long"}
+                size={24}
+                color="#2f6feb"
+              />
               <View style={styles.expenseInfo}>
-                <Text style={styles.expenseDescription}>{item.description}</Text>
+                <Text style={styles.expenseDescription}>
+                  {isSettlement
+                    ? youPaid
+                      ? `You paid ${friend?.displayName || "them"}`
+                      : `${friend?.displayName || "They"} paid you`
+                    : item.description}
+                </Text>
                 <Text style={styles.expenseMeta}>
                   {dateLabel ? `${dateLabel} · ` : ""}
-                  {youPaid ? "You paid" : `${friend?.displayName || "They"} paid`} ·{" "}
+                  {!isSettlement && (youPaid ? "You paid" : `${friend?.displayName || "They"} paid`)}
+                  {!isSettlement && " · "}
                   {formatCents(item.amountCents)}
                   {expenseGroup ? ` · ${expenseGroup.name}` : ""}
                 </Text>
@@ -123,6 +153,11 @@ const styles = StyleSheet.create({
   youOwe: {
     color: "#d32f2f",
   },
+  headerButtons: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12,
+  },
   addButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -131,10 +166,23 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    marginTop: 12,
   },
   addButtonText: {
     color: "#fff",
+    fontWeight: "600",
+  },
+  settleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#2f6feb",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  settleButtonText: {
+    color: "#2f6feb",
     fontWeight: "600",
   },
   empty: {

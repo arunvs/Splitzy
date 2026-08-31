@@ -1,0 +1,21 @@
+Splitzy is a free, forever-free way to split bills and shared expenses with friends and groups — a straightforward, open alternative to paid expense-splitting apps.
+
+WHY SPLITZY IS FREE
+Tracking who-owes-who shouldn't cost money. Splitzy is built using modern AI-assisted development, which cuts down the effort and cost of building it — savings we pass straight on to you by keeping every feature free, for everyone, forever. No subscriptions, no premium tier, no feature paywalls.
+
+HOW WE COVER OUR COSTS
+Running the app still costs something — hosting, storage, backend infrastructure. Splitzy covers that through ads, and nothing else. We do not sell your data. Your expenses, friend connections, and personal details are used only to run the app for you and are never sold to third parties for any other purpose.
+
+FEATURES
+• Add friends and split expenses one-on-one
+• Create groups for trips, roommates, or recurring shared costs
+• Split by equal shares, percentages, or exact amounts
+• See exactly who owes who, and how much, at a glance
+• Full activity history — every expense added or edited is logged
+• Backdate expenses to the actual day they happened, even for older bills
+• Manage group membership anytime — add or remove people as your group changes
+
+WHO IT'S FOR
+Anyone splitting costs with roommates, friends, family, or travel companions. Splitzy handles the math and keeps everyone's balance clear, without asking anyone to pay for it.
+
+Splitzy is actively developed, with more features on the way. Feedback and suggestions are welcome.

@@ -1,6 +1,6 @@
 import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
 
-import { addExpenseAddedActivity, addExpenseEditedActivity } from "./activity";
+import { addExpenseAddedActivity, addExpenseDeletedActivity, addExpenseEditedActivity } from "./activity";
 import { db } from "./firebase";
 import type { SplitType } from "./money";
 import type { UserProfile } from "./types";
@@ -30,6 +30,9 @@ export async function createExpense(params: {
   paidBy: string;
   splitType: SplitType;
   splits: Record<string, number>;
+  // Defaults to Object.keys(splits) — pass explicitly when the payer isn't
+  // a key in splits (e.g. a settlement, where the payer owes nothing back).
+  participants?: string[];
   groupId: string | null;
   creator: UserProfile;
   groupName?: string;
@@ -46,7 +49,7 @@ export async function createExpense(params: {
     groupName,
     expenseDate,
   } = params;
-  const participants = Object.keys(splits);
+  const participants = params.participants ?? Object.keys(splits);
 
   const batch = writeBatch(db);
   const expenseRef = doc(collection(db, "expenses"));
@@ -74,6 +77,37 @@ export async function createExpense(params: {
 
   await batch.commit();
   return expenseRef.id;
+}
+
+// A settlement is modeled as a regular expense: the payer covers the full
+// amount and the recipient's split is the full amount too (they're the one
+// whose balance improves) — the exact same balance math as a normal expense
+// already handles this correctly, no special-casing needed there. 1-on-1
+// only for now; settling a whole group (with suggested minimal-transaction
+// payments) is a bigger feature for later.
+export async function createSettlement(params: {
+  payer: UserProfile;
+  recipient: UserProfile;
+  amountCents: number;
+  expenseDate: Date;
+  // The signed-in user actually performing this write — NOT necessarily the
+  // payer (you can record "they paid me"). Firestore rules require
+  // request.auth.uid === createdBy, and request.auth.uid is always the real
+  // signed-in user, so `creator` must be them, never the other party.
+  actor: UserProfile;
+}): Promise<string> {
+  const { payer, recipient, amountCents, expenseDate, actor } = params;
+  return createExpense({
+    description: "Settlement",
+    amountCents,
+    paidBy: payer.uid,
+    splitType: "settlement",
+    splits: { [recipient.uid]: amountCents },
+    participants: [payer.uid, recipient.uid],
+    groupId: null,
+    creator: actor,
+    expenseDate,
+  });
 }
 
 export async function updateExpense(
@@ -115,6 +149,25 @@ export async function updateExpense(
     amountCents,
     participants,
     groupId,
+    groupName,
+  });
+
+  await batch.commit();
+}
+
+export async function deleteExpense(
+  expense: Expense,
+  actor: UserProfile,
+  groupName?: string,
+): Promise<void> {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, "expenses", expense.id));
+
+  addExpenseDeletedActivity(batch, actor, {
+    description: expense.description,
+    amountCents: expense.amountCents,
+    participants: expense.participants,
+    groupId: expense.groupId,
     groupName,
   });
 

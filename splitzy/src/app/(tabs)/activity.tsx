@@ -1,5 +1,6 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -39,6 +40,11 @@ function describeActivity(entry: ActivityEntry, currentUid: string) {
     const where = entry.groupName ? ` in ${entry.groupName}` : "";
     return `${who} edited "${entry.description}" (${formatCents(entry.amountCents)})${where}`;
   }
+  if (entry.type === "expense_deleted") {
+    const who = entry.actorUid === currentUid ? "You" : entry.actorName;
+    const where = entry.groupName ? ` in ${entry.groupName}` : "";
+    return `${who} deleted "${entry.description}" (${formatCents(entry.amountCents)})${where}`;
+  }
   if (entry.type === "group_member_added") {
     const who = entry.actorUid === currentUid ? "You" : entry.actorName;
     if (entry.memberUid === currentUid) {
@@ -59,6 +65,7 @@ function describeActivity(entry: ActivityEntry, currentUid: string) {
 function activityIcon(entry: ActivityEntry) {
   if (entry.type === "signed_up") return "how-to-reg";
   if (entry.type === "expense_edited") return "edit";
+  if (entry.type === "expense_deleted") return "delete";
   if (entry.type === "group_created") return "group";
   if (entry.type === "group_member_added") return "person-add";
   if (entry.type === "group_member_removed") return "person-remove";
@@ -81,6 +88,7 @@ function getActivityRoute(entry: ActivityEntry, currentUid: string): string | nu
     case "expense_added":
     case "expense_edited":
       return `/expense/${entry.expenseId}`;
+    case "expense_deleted":
     case "signed_up":
     default:
       return null;
@@ -91,6 +99,18 @@ export default function ActivityScreen() {
   const router = useRouter();
   const { user } = useAuthState();
   const { entries, loading, loadingMore, hasMore, loadMore, refresh } = useActivity(user?.uid);
+
+  // useActivity fetches once and doesn't listen live (deliberately — see its
+  // own comment on why pagination + a live listener don't mix well). Bottom
+  // tabs stay mounted when you switch away, so without this, coming back to
+  // an already-visited Activity tab would keep showing stale data from
+  // whenever it was first opened, missing anything created elsewhere since.
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.uid]),
+  );
 
   return (
     <View style={styles.container}>

@@ -1,13 +1,17 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { NotFound } from "@/components/not-found";
 import { centeredContent } from "@/constants/layout";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useFriends } from "@/hooks/use-friends";
 import { useGroups } from "@/hooks/use-groups";
 import { useMyExpenses } from "@/hooks/use-my-expenses";
+import { deleteExpense } from "@/lib/expenses";
 import type { Group } from "@/lib/groups";
+import { logError } from "@/lib/log-error";
 import { formatCents } from "@/lib/money";
 import type { UserProfile } from "@/lib/types";
 
@@ -15,6 +19,7 @@ const SPLIT_TYPE_LABELS = {
   equal: "Split equally",
   percentage: "Split by percentage",
   exact: "Split by exact amounts",
+  settlement: "Settlement",
 };
 
 function resolveName(
@@ -39,17 +44,42 @@ export default function ExpenseDetailScreen() {
   const { user } = useAuthState();
   const { friends } = useFriends(user?.uid);
   const { groups } = useGroups(user?.uid);
-  const { expenses } = useMyExpenses(user?.uid);
+  const { expenses, loading: expensesLoading } = useMyExpenses(user?.uid);
+  const [deleting, setDeleting] = useState(false);
 
   const expense = expenses.find((e) => e.id === expenseId);
   const group = expense?.groupId ? groups.find((g) => g.id === expense.groupId) : undefined;
 
+  async function handleDelete() {
+    if (!expense || !user?.email) return;
+    setDeleting(true);
+    try {
+      await deleteExpense(
+        expense,
+        { uid: user.uid, email: user.email, displayName: user.displayName ?? "" },
+        group?.name,
+      );
+      router.back();
+    } catch (err) {
+      logError(err, { screen: "expense-detail", action: "delete" });
+      Alert.alert("Something went wrong", "Please try again.");
+      setDeleting(false);
+    }
+  }
+
+  function confirmDelete() {
+    Alert.alert("Delete expense", "This can't be undone.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: handleDelete },
+    ]);
+  }
+
+  if (!expensesLoading && !expense) {
+    return <NotFound />;
+  }
+
   if (!expense) {
-    return (
-      <View style={[styles.container, styles.content]}>
-        <Text style={styles.notFound}>Expense not found.</Text>
-      </View>
-    );
+    return null;
   }
 
   const payerName = resolveName(expense.paidBy, user?.uid, friends, group);
@@ -58,7 +88,11 @@ export default function ExpenseDetailScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <MaterialIcons name="receipt-long" size={48} color="#2f6feb" />
+        <MaterialIcons
+          name={expense.splitType === "settlement" ? "swap-horiz" : "receipt-long"}
+          size={48}
+          color="#2f6feb"
+        />
         <Text style={styles.description}>{expense.description}</Text>
         <Text style={styles.amount}>{formatCents(expense.amountCents)}</Text>
       </View>
@@ -123,6 +157,13 @@ export default function ExpenseDetailScreen() {
         <MaterialIcons name="edit" size={18} color="#fff" />
         <Text style={styles.editButtonText}>Edit expense</Text>
       </Pressable>
+
+      <Pressable style={styles.deleteButton} disabled={deleting} onPress={confirmDelete}>
+        <MaterialIcons name="delete" size={18} color="#d32f2f" />
+        <Text style={styles.deleteButtonText}>
+          {deleting ? "Deleting..." : "Delete expense"}
+        </Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -134,11 +175,6 @@ const styles = StyleSheet.create({
   content: {
     padding: 24,
     ...centeredContent,
-  },
-  notFound: {
-    textAlign: "center",
-    color: "#888",
-    marginTop: 40,
   },
   header: {
     alignItems: "center",
@@ -199,6 +235,18 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     color: "#fff",
+    fontWeight: "600",
+  },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  deleteButtonText: {
+    color: "#d32f2f",
     fontWeight: "600",
   },
 });

@@ -55,6 +55,17 @@ export type ActivityEntry =
     }
   | {
       id: string;
+      type: "expense_deleted";
+      actorUid: string;
+      actorName: string;
+      description: string;
+      amountCents: number;
+      groupId: string | null;
+      groupName: string | null;
+      createdAt: Date | null;
+    }
+  | {
+      id: string;
       type: "group_member_added";
       actorUid: string;
       actorName: string;
@@ -154,6 +165,31 @@ export function addExpenseEditedActivity(
     actorUid: actor.uid,
     actorName: actor.displayName || actor.email,
     expenseId: expense.expenseId,
+    description: expense.description,
+    amountCents: expense.amountCents,
+    groupId: expense.groupId,
+    groupName: expense.groupName ?? null,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export function addExpenseDeletedActivity(
+  batch: WriteBatch,
+  actor: UserProfile,
+  expense: {
+    description: string;
+    amountCents: number;
+    participants: string[];
+    groupId: string | null;
+    groupName?: string;
+  },
+) {
+  const ref = doc(collection(db, "activity"));
+  batch.set(ref, {
+    type: "expense_deleted",
+    participants: expense.participants,
+    actorUid: actor.uid,
+    actorName: actor.displayName || actor.email,
     description: expense.description,
     amountCents: expense.amountCents,
     groupId: expense.groupId,
