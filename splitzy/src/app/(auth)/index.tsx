@@ -2,9 +2,11 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
 
+import { AppText, FormField, PrimaryButton, Screen } from "@/components/ui";
 import { centeredContent } from "@/constants/layout";
+import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { getAuthErrorMessage } from "@/lib/auth-errors";
 import { auth } from "@/lib/firebase";
 
@@ -29,107 +31,117 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Splitzy</Text>
+    <Screen>
+      <View style={styles.body}>
+        <AppText variant="displayCurrency" color="primary" style={styles.brand}>
+          Splitzy
+        </AppText>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-
-      <View style={styles.passwordRow}>
-        <TextInput
-          style={styles.passwordInput}
-          placeholder="Password"
-          secureTextEntry={!showPassword}
-          value={password}
-          onChangeText={setPassword}
+        <FormField
+          label="Email"
+          placeholder="you@example.com"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
         />
-        <Pressable
-          onPress={() => setShowPassword((prev) => !prev)}
-          hitSlop={8}
-          style={styles.eyeButton}>
-          <MaterialIcons
-            name={showPassword ? "visibility-off" : "visibility"}
-            size={22}
-            color="#666"
-          />
+
+        <View style={styles.field}>
+          <AppText variant="label" color="textMuted">
+            PASSWORD
+          </AppText>
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="••••••••"
+              placeholderTextColor={colors.textFaint}
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
+            />
+            <Pressable onPress={() => setShowPassword((p) => !p)} hitSlop={8}>
+              <MaterialIcons
+                name={showPassword ? "visibility-off" : "visibility"}
+                size={22}
+                color={colors.textFaint}
+              />
+            </Pressable>
+          </View>
+          <Pressable
+            onPress={() => router.push("/forgot-password")}
+            hitSlop={6}
+            style={styles.forgotRow}>
+            <AppText variant="body" color="primary">
+              Forgot password?
+            </AppText>
+          </Pressable>
+        </View>
+
+        {error && (
+          <AppText variant="body" color="negative">
+            {error}
+          </AppText>
+        )}
+
+        <PrimaryButton
+          label={submitting ? "Logging in…" : "Log in"}
+          full
+          loading={submitting}
+          onPress={handleLogin}
+          style={styles.submit}
+        />
+
+        <Pressable onPress={() => router.push("/register")} style={styles.linkRow}>
+          <AppText variant="body" color="primary">
+            Don&apos;t have an account? Sign up
+          </AppText>
         </Pressable>
       </View>
-
-      {error && <Text style={styles.error}>{error}</Text>}
-
-      <Pressable
-        style={styles.button}
-        disabled={submitting}
-        onPress={handleLogin}>
-        <Text style={styles.buttonText}>{submitting ? "Logging in..." : "Log in"}</Text>
-      </Pressable>
-
-      <Pressable onPress={() => router.push("/register")}>
-        <Text style={styles.link}>Don&apos;t have an account? Sign up</Text>
-      </Pressable>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  body: {
     flex: 1,
     justifyContent: "center",
-    paddingHorizontal: 24,
-    gap: 12,
+    gap: spacing.gutter,
     ...centeredContent,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
+  brand: {
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  field: {
+    gap: spacing.xs,
+  },
+  forgotRow: {
+    alignSelf: "flex-end",
+    marginTop: spacing.xs,
   },
   passwordRow: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
   },
   passwordInput: {
     flex: 1,
-    paddingVertical: 10,
-  },
-  eyeButton: {
-    padding: 4,
-  },
-  button: {
-    backgroundColor: "#2f6feb",
-    borderRadius: 8,
     paddingVertical: 12,
+    fontSize: 16,
+    fontFamily: fonts.regular,
+    color: colors.text,
+    includeFontPadding: false,
+    textAlignVertical: "center",
+  },
+  submit: {
+    marginTop: spacing.sm,
+  },
+  linkRow: {
     alignItems: "center",
-    marginTop: 8,
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  error: {
-    color: "#d32f2f",
-  },
-  link: {
-    textAlign: "center",
-    color: "#2f6feb",
-    marginTop: 16,
+    marginTop: spacing.sm,
   },
 });

@@ -1,15 +1,16 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
 
 import { AddExpenseFab } from "@/components/add-expense-fab";
 import { SearchField } from "@/components/search-field";
-import { cardBorder } from "@/constants/shadows";
+import { AppText, Card, IconBadge, IconButton, PrimaryButton, Screen } from "@/components/ui";
+import { colors, radius, spacing } from "@/constants/theme";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useGroups } from "@/hooks/use-groups";
 import { useMyExpenses } from "@/hooks/use-my-expenses";
-import { sumBalances, computeBalancesByOtherUser } from "@/lib/expenses";
+import { computeBalancesByOtherUser, sumBalances } from "@/lib/expenses";
 import { formatCents } from "@/lib/money";
 
 export default function GroupsScreen() {
@@ -42,190 +43,160 @@ export default function GroupsScreen() {
     );
   }, [groups, search]);
 
-  return (
-    <View style={styles.container}>
-      {!loading && !hasGroups && (
+  if (!loading && !hasGroups) {
+    return (
+      <Screen>
         <View style={styles.empty}>
-          <MaterialIcons name="group" size={64} color="#bbb" />
-          <Text style={styles.emptyTitle}>No groups yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Create a group to start splitting expenses with more than one friend.
-          </Text>
-          <Pressable style={styles.addButton} onPress={() => router.push("/create-group")}>
-            <Text style={styles.addButtonText}>Create a group</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {hasGroups && (
-        <>
-          <View style={styles.headerRow}>
-            <View style={styles.searchSlot}>
-              <SearchField
-                value={search}
-                onChangeText={setSearch}
-                placeholder="Search groups"
-                onExpandedChange={setSearchExpanded}
-              />
-            </View>
-            {!searchExpanded && (
-              <Pressable style={styles.addIconButton} onPress={() => router.push("/create-group")}>
-                <MaterialIcons name="group-add" size={22} color="#2f6feb" />
-              </Pressable>
-            )}
+          <View style={styles.emptyIcon}>
+            <MaterialIcons name="groups" size={44} color={colors.primary} />
           </View>
-
-          <FlatList
-            data={filteredGroups}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.list}
-            keyboardShouldPersistTaps="handled"
-            ListEmptyComponent={
-              <Text style={styles.noResults}>No groups match &quot;{search}&quot;.</Text>
-            }
-            renderItem={({ item }) => {
-              const balance = groupBalances[item.id] ?? 0;
-              return (
-                <Pressable
-                  style={({ pressed }) => [styles.groupRow, pressed && styles.groupRowPressed]}
-                  onPress={() => router.push(`/group/${item.id}`)}>
-                  <View style={styles.groupIconCircle}>
-                    <MaterialIcons name="group" size={24} color="#2f6feb" />
-                  </View>
-                  <View style={styles.groupInfo}>
-                    <Text style={styles.groupName}>{item.name}</Text>
-                    <Text style={styles.groupMeta}>
-                      {item.members.length} member{item.members.length === 1 ? "" : "s"}
-                      {item.description ? ` · ${item.description}` : ""}
-                    </Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.groupBalance,
-                      balance > 0 ? styles.owedToYou : balance < 0 ? styles.youOwe : undefined,
-                    ]}>
-                    {balance === 0
-                      ? "settled"
-                      : balance > 0
-                        ? `owed ${formatCents(balance)}`
-                        : `owe ${formatCents(-balance)}`}
-                  </Text>
-                </Pressable>
-              );
-            }}
+          <AppText variant="title">No groups yet</AppText>
+          <AppText variant="body" color="textMuted" style={styles.emptySubtitle}>
+            Create a group to split expenses with more than one friend.
+          </AppText>
+          <PrimaryButton
+            label="Create a group"
+            icon="group-add"
+            onPress={() => router.push("/create-group")}
+            style={styles.emptyButton}
           />
-        </>
-      )}
+        </View>
+        <AddExpenseFab />
+      </Screen>
+    );
+  }
+
+  return (
+    <Screen>
+      <View style={styles.header}>
+        {!searchExpanded && <AppText variant="headlineLg">Groups</AppText>}
+        <View style={[styles.headerActions, searchExpanded && styles.headerActionsExpanded]}>
+          <SearchField
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search groups"
+            expanded={searchExpanded}
+            onExpandedChange={setSearchExpanded}
+          />
+          {!searchExpanded && (
+            <IconButton name="group-add" onPress={() => router.push("/create-group")} />
+          )}
+        </View>
+      </View>
+
+      <FlatList
+        data={filteredGroups}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <AppText variant="body" color="textFaint" style={styles.noResults}>
+            No groups match &quot;{search}&quot;.
+          </AppText>
+        }
+        renderItem={({ item }) => {
+          const balance = groupBalances[item.id] ?? 0;
+          const memberLabel = `${item.members.length} member${item.members.length === 1 ? "" : "s"}`;
+          return (
+            <Pressable
+              onPress={() => router.push(`/group/${item.id}`)}
+              style={({ pressed }) => pressed && styles.rowPressed}>
+              <Card style={styles.row}>
+                <IconBadge name="group" tone="primary" />
+                <View style={styles.rowInfo}>
+                  <AppText variant="bodyLgSemibold" numberOfLines={1}>
+                    {item.name}
+                  </AppText>
+                  <AppText variant="body" color="textMuted" numberOfLines={1}>
+                    {item.description ? `${memberLabel} · ${item.description}` : memberLabel}
+                  </AppText>
+                </View>
+                {balance === 0 ? (
+                  <MaterialIcons name="check-circle" size={20} color={colors.textFaint} />
+                ) : (
+                  <View style={styles.rowAmount}>
+                    <AppText variant="body" color={balance > 0 ? "positive" : "negative"}>
+                      {balance > 0 ? "you're owed" : "you owe"}
+                    </AppText>
+                    <AppText variant="title" color={balance > 0 ? "positive" : "negative"}>
+                      {formatCents(Math.abs(balance))}
+                    </AppText>
+                  </View>
+                )}
+              </Card>
+            </Pressable>
+          );
+        }}
+      />
 
       <AddExpenseFab />
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 44,
+    marginTop: spacing.sm,
+    marginBottom: spacing.gutter,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  headerActionsExpanded: {
     flex: 1,
-    paddingTop: 60,
-    paddingHorizontal: 20,
+  },
+  list: {
+    gap: spacing.md,
+    paddingBottom: 96,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  rowPressed: {
+    opacity: 0.7,
+  },
+  rowInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  rowAmount: {
+    alignItems: "flex-end",
+    gap: 2,
   },
   empty: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: spacing.sm,
     paddingBottom: 80,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginTop: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-    paddingHorizontal: 32,
-  },
-  addButton: {
-    backgroundColor: "#2f6feb",
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    marginTop: 16,
-  },
-  addButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    marginBottom: 14,
-  },
-  searchSlot: {
-    flex: 1,
-  },
-  addIconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#e8effd",
+  emptyIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryTint,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: spacing.sm,
+  },
+  emptySubtitle: {
+    textAlign: "center",
+    paddingHorizontal: spacing.xl,
+  },
+  emptyButton: {
+    marginTop: spacing.gutter,
   },
   noResults: {
     textAlign: "center",
-    color: "#888",
-    marginTop: 24,
-  },
-  list: {
-    gap: 10,
-    paddingBottom: 8,
-  },
-  groupRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    ...cardBorder,
-  },
-  groupRowPressed: {
-    backgroundColor: "#f7f9fd",
-  },
-  groupIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#e8effd",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  groupInfo: {
-    flex: 1,
-  },
-  groupName: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  groupMeta: {
-    fontSize: 13,
-    color: "#666",
-  },
-  groupBalance: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#888",
-    maxWidth: 90,
-    textAlign: "right",
-  },
-  owedToYou: {
-    color: "#2e7d32",
-  },
-  youOwe: {
-    color: "#d32f2f",
+    marginTop: spacing.lg,
   },
 });

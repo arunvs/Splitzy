@@ -1,10 +1,12 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 
 import { NotFound } from "@/components/not-found";
+import { AppText, Avatar, Card, IconBadge, PrimaryButton } from "@/components/ui";
 import { centeredContent } from "@/constants/layout";
+import { colors, spacing } from "@/constants/theme";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useFriends } from "@/hooks/use-friends";
 import { useGroups } from "@/hooks/use-groups";
@@ -36,6 +38,17 @@ function resolveName(
   const friend = friends.find((f) => f.uid === uid);
   if (friend) return friend.displayName || friend.email;
   return uid;
+}
+
+function MetaRow({ icon, children }: { icon: keyof typeof MaterialIcons.glyphMap; children: string }) {
+  return (
+    <View style={styles.metaRow}>
+      <MaterialIcons name={icon} size={18} color={colors.textFaint} />
+      <AppText variant="body" color="textMuted" style={styles.metaText}>
+        {children}
+      </AppText>
+    </View>
+  );
 }
 
 export default function ExpenseDetailScreen() {
@@ -74,96 +87,87 @@ export default function ExpenseDetailScreen() {
     ]);
   }
 
-  if (!expensesLoading && !expense) {
-    return <NotFound />;
-  }
+  if (!expensesLoading && !expense) return <NotFound />;
+  if (!expense) return null;
 
-  if (!expense) {
-    return null;
-  }
-
+  const isSettlement = expense.splitType === "settlement";
   const payerName = resolveName(expense.paidBy, user?.uid, friends, group);
-  const editorName = expense.updatedBy ? resolveName(expense.updatedBy, user?.uid, friends, group) : null;
+  const editorName = expense.updatedBy
+    ? resolveName(expense.updatedBy, user?.uid, friends, group)
+    : null;
+  const dateText =
+    (expense.expenseDate ?? expense.createdAt)?.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }) ?? "Unknown date";
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <MaterialIcons
-          name={expense.splitType === "settlement" ? "swap-horiz" : "receipt-long"}
-          size={48}
-          color="#2f6feb"
+        <IconBadge name={isSettlement ? "swap-horiz" : "receipt-long"} tone="primary" size={56} />
+        <AppText variant="title" style={styles.description}>
+          {expense.description}
+        </AppText>
+        <AppText variant="displayCurrency" color="primary">
+          {formatCents(expense.amountCents)}
+        </AppText>
+      </View>
+
+      <Card style={styles.metaCard}>
+        <MetaRow icon="event">{dateText}</MetaRow>
+        <MetaRow icon="payments">{`${payerName} paid ${formatCents(expense.amountCents)}`}</MetaRow>
+        {group ? <MetaRow icon="group">{group.name}</MetaRow> : null}
+        <MetaRow icon="calculate">{SPLIT_TYPE_LABELS[expense.splitType]}</MetaRow>
+        {editorName && expense.updatedAt ? (
+          <MetaRow icon="edit">
+            {`Last edited by ${editorName} on ${expense.updatedAt.toLocaleDateString()}`}
+          </MetaRow>
+        ) : null}
+      </Card>
+
+      <AppText variant="label" color="textMuted" style={styles.sectionLabel}>
+        BREAKDOWN
+      </AppText>
+      <Card padded={false}>
+        {expense.participants.map((uid, i) => {
+          const name = resolveName(uid, user?.uid, friends, group);
+          const share = expense.splits[uid] ?? 0;
+          const isPayer = uid === expense.paidBy;
+          return (
+            <View key={uid} style={[styles.breakdownRow, i > 0 && styles.rowDivider]}>
+              <Avatar name={name} size={36} />
+              <AppText variant="bodySemibold" style={styles.breakdownName} numberOfLines={1}>
+                {name}
+              </AppText>
+              <AppText variant="body" color="textMuted">
+                {isPayer ? `paid ${formatCents(expense.amountCents)}, owes ` : "owes "}
+                {formatCents(share)}
+              </AppText>
+            </View>
+          );
+        })}
+      </Card>
+
+      <View style={styles.actions}>
+        <PrimaryButton
+          label="Edit expense"
+          icon="edit"
+          full
+          onPress={() =>
+            router.push({ pathname: "/add-expense", params: { expenseId: expense.id } })
+          }
         />
-        <Text style={styles.description}>{expense.description}</Text>
-        <Text style={styles.amount}>{formatCents(expense.amountCents)}</Text>
+        <PrimaryButton
+          label={deleting ? "Deleting…" : "Delete expense"}
+          icon="delete"
+          variant="ghost"
+          danger
+          full
+          disabled={deleting}
+          onPress={confirmDelete}
+        />
       </View>
-
-      <View style={styles.metaRow}>
-        <MaterialIcons name="event" size={18} color="#666" />
-        <Text style={styles.metaText}>
-          {(expense.expenseDate ?? expense.createdAt)?.toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          }) ?? "Unknown date"}
-        </Text>
-      </View>
-
-      <View style={styles.metaRow}>
-        <MaterialIcons name="payments" size={18} color="#666" />
-        <Text style={styles.metaText}>{payerName} paid {formatCents(expense.amountCents)}</Text>
-      </View>
-
-      {group && (
-        <View style={styles.metaRow}>
-          <MaterialIcons name="group" size={18} color="#666" />
-          <Text style={styles.metaText}>{group.name}</Text>
-        </View>
-      )}
-
-      <View style={styles.metaRow}>
-        <MaterialIcons name="calculate" size={18} color="#666" />
-        <Text style={styles.metaText}>{SPLIT_TYPE_LABELS[expense.splitType]}</Text>
-      </View>
-
-      {editorName && expense.updatedAt && (
-        <View style={styles.metaRow}>
-          <MaterialIcons name="edit" size={18} color="#666" />
-          <Text style={styles.metaText}>
-            Last edited by {editorName} on {expense.updatedAt.toLocaleDateString()}
-          </Text>
-        </View>
-      )}
-
-      <Text style={styles.sectionLabel}>Breakdown</Text>
-      {expense.participants.map((uid) => {
-        const name = resolveName(uid, user?.uid, friends, group);
-        const share = expense.splits[uid] ?? 0;
-        const isPayer = uid === expense.paidBy;
-        return (
-          <View key={uid} style={styles.breakdownRow}>
-            <MaterialIcons name="account-circle" size={28} color="#888" />
-            <Text style={styles.breakdownName}>{name}</Text>
-            <Text style={styles.breakdownShare}>
-              {isPayer ? `paid ${formatCents(expense.amountCents)}, owes ` : "owes "}
-              {formatCents(share)}
-            </Text>
-          </View>
-        );
-      })}
-
-      <Pressable
-        style={styles.editButton}
-        onPress={() => router.push({ pathname: "/add-expense", params: { expenseId: expense.id } })}>
-        <MaterialIcons name="edit" size={18} color="#fff" />
-        <Text style={styles.editButtonText}>Edit expense</Text>
-      </Pressable>
-
-      <Pressable style={styles.deleteButton} disabled={deleting} onPress={confirmDelete}>
-        <MaterialIcons name="delete" size={18} color="#d32f2f" />
-        <Text style={styles.deleteButtonText}>
-          {deleting ? "Deleting..." : "Delete expense"}
-        </Text>
-      </Pressable>
     </ScrollView>
   );
 }
@@ -173,80 +177,48 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 24,
+    padding: spacing.lg,
     ...centeredContent,
   },
   header: {
     alignItems: "center",
-    gap: 4,
-    marginBottom: 20,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   description: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginTop: 8,
     textAlign: "center",
   },
-  amount: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#2f6feb",
+  metaCard: {
+    gap: spacing.xs,
   },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 6,
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   metaText: {
-    fontSize: 14,
-    color: "#333",
+    flex: 1,
   },
   sectionLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666",
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
   breakdownRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 8,
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+  rowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   breakdownName: {
     flex: 1,
-    fontSize: 15,
   },
-  breakdownShare: {
-    fontSize: 13,
-    color: "#666",
-  },
-  editButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#2f6feb",
-    borderRadius: 8,
-    paddingVertical: 12,
-    marginTop: 24,
-  },
-  editButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  deleteButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    marginTop: 8,
-  },
-  deleteButtonText: {
-    color: "#d32f2f",
-    fontWeight: "600",
+  actions: {
+    marginTop: spacing.lg,
+    gap: spacing.sm,
   },
 });

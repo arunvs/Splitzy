@@ -1,16 +1,10 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useCallback, useMemo } from "react";
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 
+import { AppText, Card, IconBadge, Screen } from "@/components/ui";
+import { colors, spacing } from "@/constants/theme";
 import { useActivity } from "@/hooks/use-activity";
 import { useAuthState } from "@/hooks/use-auth-state";
 import type { ActivityEntry } from "@/lib/activity";
@@ -62,7 +56,7 @@ function describeActivity(entry: ActivityEntry, currentUid: string) {
   return "Activity";
 }
 
-function activityIcon(entry: ActivityEntry) {
+function activityIcon(entry: ActivityEntry): keyof typeof MaterialIcons.glyphMap {
   if (entry.type === "signed_up") return "how-to-reg";
   if (entry.type === "expense_edited") return "edit";
   if (entry.type === "expense_deleted") return "delete";
@@ -71,6 +65,13 @@ function activityIcon(entry: ActivityEntry) {
   if (entry.type === "group_member_removed") return "person-remove";
   if (entry.type === "expense_added") return "receipt-long";
   return "people";
+}
+
+function activityTone(entry: ActivityEntry): "primary" | "positive" | "negative" | "neutral" {
+  if (entry.type === "expense_deleted" || entry.type === "group_member_removed") return "negative";
+  if (entry.type === "expense_added" || entry.type === "friend_added") return "primary";
+  if (entry.type === "signed_up") return "positive";
+  return "neutral";
 }
 
 // Where tapping an entry should take you — mirrors the same detail screens
@@ -88,12 +89,22 @@ function getActivityRoute(entry: ActivityEntry, currentUid: string): string | nu
     case "expense_added":
     case "expense_edited":
       return `/expense/${entry.expenseId}`;
-    case "expense_deleted":
-    case "signed_up":
     default:
       return null;
   }
 }
+
+function dayLabel(date: Date): string {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const diffDays = Math.round((startOfToday - day) / 86_400_000);
+  if (diffDays <= 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  return date.toLocaleDateString(undefined, { month: "long", day: "numeric" });
+}
+
+type Section = { label: string; entries: ActivityEntry[] };
 
 export default function ActivityScreen() {
   const router = useRouter();
@@ -101,10 +112,8 @@ export default function ActivityScreen() {
   const { entries, loading, loadingMore, hasMore, loadMore, refresh } = useActivity(user?.uid);
 
   // useActivity fetches once and doesn't listen live (deliberately — see its
-  // own comment on why pagination + a live listener don't mix well). Bottom
-  // tabs stay mounted when you switch away, so without this, coming back to
-  // an already-visited Activity tab would keep showing stale data from
-  // whenever it was first opened, missing anything created elsewhere since.
+  // own comment). Bottom tabs stay mounted, so without this a revisited tab
+  // would show stale data.
   useFocusEffect(
     useCallback(() => {
       refresh();
@@ -112,97 +121,146 @@ export default function ActivityScreen() {
     }, [user?.uid]),
   );
 
+  const sections = useMemo<Section[]>(() => {
+    const out: Section[] = [];
+    for (const entry of entries) {
+      const label = entry.createdAt ? dayLabel(entry.createdAt) : "Earlier";
+      const last = out[out.length - 1];
+      if (last && last.label === label) last.entries.push(entry);
+      else out.push({ label, entries: [entry] });
+    }
+    return out;
+  }, [entries]);
+
   return (
-    <View style={styles.container}>
+    <Screen>
+      <AppText variant="headlineLg" style={styles.title}>
+        Activity
+      </AppText>
+
       {!loading && entries.length === 0 && (
         <View style={styles.empty}>
-          <MaterialIcons name="history" size={64} color="#bbb" />
-          <Text style={styles.emptyTitle}>No activity yet</Text>
+          <View style={styles.emptyIcon}>
+            <MaterialIcons name="history" size={44} color={colors.primary} />
+          </View>
+          <AppText variant="title">No activity yet</AppText>
         </View>
       )}
 
       <FlatList
-        data={entries}
-        keyExtractor={(item) => item.id}
+        data={sections}
+        keyExtractor={(section) => section.label + section.entries[0]?.id}
         contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
         onEndReachedThreshold={0.3}
         onEndReached={loadMore}
-        renderItem={({ item }) => {
-          const route = user ? getActivityRoute(item, user.uid) : null;
-          return (
-            <Pressable
-              style={styles.row}
-              disabled={!route}
-              onPress={() => route && router.push(route)}>
-              <MaterialIcons name={activityIcon(item)} size={28} color="#2f6feb" />
-              <View style={styles.rowInfo}>
-                <Text style={styles.rowText}>{user ? describeActivity(item, user.uid) : ""}</Text>
-                {item.createdAt && (
-                  <Text style={styles.rowTime}>{item.createdAt.toLocaleString()}</Text>
-                )}
-              </View>
-              {route && <MaterialIcons name="chevron-right" size={22} color="#bbb" />}
-            </Pressable>
-          );
-        }}
+        renderItem={({ item: section }) => (
+          <View style={styles.section}>
+            <AppText variant="label" color="textMuted" style={styles.sectionLabel}>
+              {section.label.toUpperCase()}
+            </AppText>
+            <Card padded={false}>
+              {section.entries.map((entry, i) => {
+                const route = user ? getActivityRoute(entry, user.uid) : null;
+                return (
+                  <Pressable
+                    key={entry.id}
+                    disabled={!route}
+                    onPress={() => route && router.push(route as never)}
+                    style={({ pressed }) => [
+                      styles.row,
+                      i > 0 && styles.rowDivider,
+                      pressed && styles.rowPressed,
+                    ]}>
+                    <IconBadge name={activityIcon(entry)} tone={activityTone(entry)} size={40} />
+                    <View style={styles.rowInfo}>
+                      <AppText variant="body">
+                        {user ? describeActivity(entry, user.uid) : ""}
+                      </AppText>
+                      {entry.createdAt && (
+                        <AppText variant="label" color="textFaint">
+                          {entry.createdAt.toLocaleTimeString(undefined, {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </AppText>
+                      )}
+                    </View>
+                    {route && (
+                      <MaterialIcons name="chevron-right" size={22} color={colors.textFaint} />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </Card>
+          </View>
+        )}
         ListFooterComponent={
           loadingMore ? (
-            <ActivityIndicator style={styles.footerSpinner} />
+            <ActivityIndicator style={styles.footerSpinner} color={colors.primary} />
           ) : !hasMore && entries.length > 0 ? (
-            <Text style={styles.footerText}>That&apos;s the beginning — you joined here.</Text>
+            <AppText variant="body" color="textFaint" style={styles.footerText}>
+              That&apos;s the beginning — you joined here.
+            </AppText>
           ) : null
         }
       />
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 60,
-    paddingHorizontal: 20,
-  },
-  empty: {
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingTop: 80,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginTop: 8,
-    color: "#888",
+  title: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.gutter,
   },
   list: {
-    gap: 4,
+    gap: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  section: {
+    gap: spacing.sm,
+  },
+  sectionLabel: {
+    paddingHorizontal: spacing.xs,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 10,
+    gap: spacing.md,
+    padding: spacing.gutter,
+  },
+  rowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  rowPressed: {
+    backgroundColor: colors.surfaceAlt,
   },
   rowInfo: {
     flex: 1,
+    gap: 2,
   },
-  rowText: {
-    fontSize: 15,
+  empty: {
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingTop: 64,
   },
-  rowTime: {
-    fontSize: 12,
-    color: "#888",
-    marginTop: 2,
+  emptyIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: 999,
+    backgroundColor: colors.primaryTint,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.sm,
   },
   footerSpinner: {
-    marginVertical: 16,
+    marginVertical: spacing.gutter,
   },
   footerText: {
     textAlign: "center",
-    color: "#888",
-    fontSize: 12,
-    marginVertical: 16,
+    marginVertical: spacing.gutter,
   },
 });

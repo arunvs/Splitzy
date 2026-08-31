@@ -1,8 +1,10 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 
+import { AppText, Avatar, Card, IconBadge } from "@/components/ui";
 import { centeredContent } from "@/constants/layout";
+import { colors, spacing } from "@/constants/theme";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useFriends } from "@/hooks/use-friends";
 import { useGroups } from "@/hooks/use-groups";
@@ -15,42 +17,60 @@ export default function SelectExpenseTargetScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.hint}>Who&apos;s this expense with?</Text>
+      <AppText variant="title">Who&apos;s this expense with?</AppText>
 
-      <Text style={styles.sectionLabel}>Groups</Text>
+      <AppText variant="label" color="textMuted" style={styles.sectionLabel}>
+        GROUPS
+      </AppText>
       {groups.length === 0 ? (
-        <Text style={styles.emptyText}>No groups yet.</Text>
+        <AppText variant="body" color="textFaint">
+          No groups yet.
+        </AppText>
       ) : (
-        groups.map((group) => (
-          <Pressable
-            key={group.id}
-            style={styles.row}
-            onPress={() => router.push({ pathname: "/add-expense", params: { groupId: group.id } })}>
-            <View style={styles.iconCircle}>
-              <MaterialIcons name="group" size={20} color="#2f6feb" />
-            </View>
-            <Text style={styles.rowText}>{group.name}</Text>
-            <MaterialIcons name="chevron-right" size={22} color="#bbb" />
-          </Pressable>
-        ))
+        <View style={styles.group}>
+          {groups.map((group) => (
+            <Pressable
+              key={group.id}
+              onPress={() => router.push({ pathname: "/add-expense", params: { groupId: group.id } })}
+              style={({ pressed }) => pressed && styles.pressed}>
+              <Card style={styles.row}>
+                <IconBadge name="group" tone="primary" size={40} />
+                <AppText variant="bodyLgSemibold" style={styles.rowText} numberOfLines={1}>
+                  {group.name}
+                </AppText>
+                <MaterialIcons name="chevron-right" size={22} color={colors.textFaint} />
+              </Card>
+            </Pressable>
+          ))}
+        </View>
       )}
 
-      <Text style={styles.sectionLabel}>Friends</Text>
+      <AppText variant="label" color="textMuted" style={styles.sectionLabel}>
+        FRIENDS
+      </AppText>
       {friends.length === 0 ? (
-        <Text style={styles.emptyText}>No friends yet.</Text>
+        <AppText variant="body" color="textFaint">
+          No friends yet.
+        </AppText>
       ) : (
-        friends.map((friend) => (
-          <Pressable
-            key={friend.uid}
-            style={styles.row}
-            onPress={() => router.push({ pathname: "/add-expense", params: { friendUid: friend.uid } })}>
-            <View style={styles.iconCircle}>
-              <MaterialIcons name="account-circle" size={20} color="#2f6feb" />
-            </View>
-            <Text style={styles.rowText}>{friend.displayName || friend.email}</Text>
-            <MaterialIcons name="chevron-right" size={22} color="#bbb" />
-          </Pressable>
-        ))
+        <View style={styles.group}>
+          {friends.map((friend) => (
+            <Pressable
+              key={friend.uid}
+              onPress={() =>
+                router.push({ pathname: "/add-expense", params: { friendUid: friend.uid } })
+              }
+              style={({ pressed }) => pressed && styles.pressed}>
+              <Card style={styles.row}>
+                <Avatar name={friend.displayName || friend.email} size={40} />
+                <AppText variant="bodyLgSemibold" style={styles.rowText} numberOfLines={1}>
+                  {friend.displayName || friend.email}
+                </AppText>
+                <MaterialIcons name="chevron-right" size={22} color={colors.textFaint} />
+              </Card>
+            </Pressable>
+          ))}
+        </View>
       )}
     </ScrollView>
   );
@@ -61,44 +81,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 24,
+    padding: spacing.lg,
+    gap: spacing.sm,
     ...centeredContent,
   },
-  hint: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 16,
-  },
   sectionLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#888",
-    textTransform: "uppercase",
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: spacing.gutter,
   },
-  emptyText: {
-    color: "#888",
-    fontSize: 14,
-    marginBottom: 8,
+  group: {
+    gap: spacing.sm,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 10,
-  },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#e8effd",
-    alignItems: "center",
-    justifyContent: "center",
+    gap: spacing.md,
   },
   rowText: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: "600",
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

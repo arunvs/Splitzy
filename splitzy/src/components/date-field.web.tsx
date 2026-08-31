@@ -21,10 +21,13 @@ export function DateField({ value, onChange }: { value: Date; onChange: (date: D
 // it over date-field.tsx there), so a raw <input> is fine and gets us a
 // real native browser calendar picker instead of a hand-typed text field.
 const style: Record<string, string | number> = {
-  border: "1px solid #ccc",
-  borderRadius: 8,
-  padding: "10px 12px",
-  fontSize: 15,
-  fontFamily: "inherit",
-  minWidth: 150,
+  border: "1px solid #c2c6d6",
+  borderRadius: 12,
+  padding: "12px",
+  fontSize: 16,
+  fontFamily: "Inter_400Regular, sans-serif",
+  color: "#151c27",
+  backgroundColor: "#ffffff",
+  minWidth: 160,
+  alignSelf: "flex-start",
 };

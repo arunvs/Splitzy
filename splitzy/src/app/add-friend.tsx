@@ -1,8 +1,10 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
+import { AppText, Avatar, Card, FormField, PrimaryButton } from "@/components/ui";
 import { centeredContent } from "@/constants/layout";
+import { spacing } from "@/constants/theme";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { addFriend, findUserByEmail, isAlreadyFriend, type UserProfile } from "@/lib/friends";
 import { shareInvite } from "@/lib/invite";
@@ -61,10 +63,7 @@ export default function AddFriendScreen() {
     setAdding(true);
     setError(null);
     try {
-      await addFriend(
-        { uid: user.uid, email: user.email, displayName: user.displayName ?? "" },
-        friend,
-      );
+      await addFriend({ uid: user.uid, email: user.email, displayName: user.displayName ?? "" }, friend);
       router.back();
     } catch (err) {
       logError(err, { screen: "add-friend", action: "add" });
@@ -83,54 +82,69 @@ export default function AddFriendScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Friend&apos;s email</Text>
       <View style={styles.searchRow}>
-        <TextInput
-          style={styles.input}
-          placeholder="friend@example.com"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-          onSubmitEditing={handleSearch}
+        <View style={styles.searchField}>
+          <FormField
+            label="Friend's email"
+            placeholder="friend@example.com"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+            onSubmitEditing={handleSearch}
+            error={error}
+          />
+        </View>
+        <PrimaryButton
+          label="Search"
+          loading={searching}
+          onPress={handleSearch}
+          style={styles.searchButton}
         />
-        <Pressable style={styles.searchButton} disabled={searching} onPress={handleSearch}>
-          {searching ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.searchButtonText}>Search</Text>
-          )}
-        </Pressable>
       </View>
 
-      {error && <Text style={styles.error}>{error}</Text>}
-
       {result.status === "found" && (
-        <View style={styles.card}>
-          <Text style={styles.cardName}>{result.user.displayName || result.user.email}</Text>
-          <Text style={styles.cardEmail}>{result.user.email}</Text>
+        <Card style={styles.resultCard}>
+          <View style={styles.resultHeader}>
+            <Avatar name={result.user.displayName || result.user.email} size={44} />
+            <View style={styles.resultInfo}>
+              <AppText variant="bodyLgSemibold" numberOfLines={1}>
+                {result.user.displayName || result.user.email}
+              </AppText>
+              <AppText variant="body" color="textMuted" numberOfLines={1}>
+                {result.user.email}
+              </AppText>
+            </View>
+          </View>
           {result.alreadyFriend ? (
-            <Text style={styles.alreadyFriend}>Already in your friends list.</Text>
+            <AppText variant="body" color="textFaint">
+              Already in your friends list.
+            </AppText>
           ) : (
-            <Pressable
-              style={styles.primaryButton}
-              disabled={adding}
-              onPress={() => handleAddFriend(result.user)}>
-              <Text style={styles.primaryButtonText}>{adding ? "Adding..." : "Add friend"}</Text>
-            </Pressable>
+            <PrimaryButton
+              label={adding ? "Adding…" : "Add friend"}
+              icon="person-add"
+              full
+              loading={adding}
+              onPress={() => handleAddFriend(result.user)}
+            />
           )}
-        </View>
+        </Card>
       )}
 
       {result.status === "not-found" && (
-        <View style={styles.card}>
-          <Text style={styles.cardName}>No Splitzy account with that email</Text>
-          <Text style={styles.cardEmail}>Invite them to join instead.</Text>
-          <Pressable style={styles.primaryButton} onPress={handleInvite}>
-            <Text style={styles.primaryButtonText}>Invite to Splitzy</Text>
-          </Pressable>
-          {inviteStatus && <Text style={styles.inviteStatus}>{inviteStatus}</Text>}
-        </View>
+        <Card style={styles.resultCard}>
+          <AppText variant="bodyLgSemibold">No Splitzy account with that email</AppText>
+          <AppText variant="body" color="textMuted">
+            Invite them to join instead.
+          </AppText>
+          <PrimaryButton label="Invite to Splitzy" icon="share" variant="tonal" full onPress={handleInvite} />
+          {inviteStatus && (
+            <AppText variant="body" color="primary" style={styles.inviteStatus}>
+              {inviteStatus}
+            </AppText>
+          )}
+        </Card>
       )}
     </View>
   );
@@ -139,75 +153,34 @@ export default function AddFriendScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
+    padding: spacing.lg,
+    gap: spacing.gutter,
     ...centeredContent,
-  },
-  label: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 6,
   },
   searchRow: {
     flexDirection: "row",
-    gap: 8,
+    alignItems: "flex-start",
+    gap: spacing.sm,
   },
-  input: {
+  searchField: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
   },
   searchButton: {
-    backgroundColor: "#2f6feb",
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    justifyContent: "center",
-  },
-  searchButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  error: {
-    color: "#d32f2f",
-    marginTop: 12,
-  },
-  card: {
     marginTop: 20,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 10,
-    padding: 16,
-    gap: 4,
   },
-  cardName: {
-    fontSize: 16,
-    fontWeight: "600",
+  resultCard: {
+    gap: spacing.md,
   },
-  cardEmail: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 8,
-  },
-  primaryButton: {
-    backgroundColor: "#2f6feb",
-    borderRadius: 8,
-    paddingVertical: 10,
+  resultHeader: {
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
+    gap: spacing.md,
   },
-  primaryButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  alreadyFriend: {
-    color: "#888",
-    fontStyle: "italic",
+  resultInfo: {
+    flex: 1,
+    gap: 2,
   },
   inviteStatus: {
-    color: "#2f6feb",
-    marginTop: 8,
     textAlign: "center",
   },
 });

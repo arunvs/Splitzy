@@ -1,14 +1,17 @@
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import { DateField } from "@/components/date-field";
+import { AppText, Avatar, FormField, PrimaryButton, SegmentedControl } from "@/components/ui";
 import { centeredContent } from "@/constants/layout";
+import { colors, spacing } from "@/constants/theme";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useFriends } from "@/hooks/use-friends";
 import { createSettlement } from "@/lib/expenses";
 import { logError } from "@/lib/log-error";
-import { parseAmountToCents } from "@/lib/money";
+import { formatCents, parseAmountToCents } from "@/lib/money";
 
 export default function SettleUpScreen() {
   const router = useRouter();
@@ -22,13 +25,14 @@ export default function SettleUpScreen() {
 
   const balance = Number(balanceParam ?? 0);
   // balance > 0 means they owe you, so by default they're the one paying.
-  const [youPaid, setYouPaid] = useState(balance < 0);
-  const [amountInput, setAmountInput] = useState(
-    balance ? (Math.abs(balance) / 100).toFixed(2) : "",
-  );
+  const [payer, setPayer] = useState<"you" | "them">(balance < 0 ? "you" : "them");
+  const [amountInput, setAmountInput] = useState(balance ? (Math.abs(balance) / 100).toFixed(2) : "");
   const [settleDate, setSettleDate] = useState(() => new Date());
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const friendName = friend?.displayName || friend?.email || "them";
+  const meName = user?.displayName || user?.email || "You";
 
   async function handleSave() {
     if (!user?.email || !friend) return;
@@ -41,6 +45,7 @@ export default function SettleUpScreen() {
     }
 
     const me = { uid: user.uid, email: user.email, displayName: user.displayName ?? "" };
+    const youPaid = payer === "you";
     setSaving(true);
     try {
       await createSettlement({
@@ -59,110 +64,103 @@ export default function SettleUpScreen() {
     }
   }
 
-  const friendName = friend?.displayName || friend?.email || "them";
+  const headline =
+    balance === 0
+      ? `Settle up with ${friendName}`
+      : balance > 0
+        ? `${friendName} owes you ${formatCents(balance)}`
+        : `You owe ${friendName} ${formatCents(-balance)}`;
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.hint}>Record a payment to settle up with {friendName}.</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <AppText variant="title" style={styles.headline}>
+        {headline}
+      </AppText>
 
-      <Text style={styles.sectionLabel}>Who paid</Text>
-      <View style={styles.chipRow}>
-        <Pressable
-          style={[styles.chip, youPaid && styles.chipSelected]}
-          onPress={() => setYouPaid(true)}>
-          <Text style={[styles.chipText, youPaid && styles.chipTextSelected]}>You paid</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.chip, !youPaid && styles.chipSelected]}
-          onPress={() => setYouPaid(false)}>
-          <Text style={[styles.chipText, !youPaid && styles.chipTextSelected]}>
-            {friendName} paid
-          </Text>
-        </Pressable>
+      <View style={styles.people}>
+        <View style={styles.person}>
+          <Avatar name={payer === "you" ? meName : friendName} size={56} />
+          <AppText variant="label" color="textMuted">
+            {payer === "you" ? "You" : friendName}
+          </AppText>
+        </View>
+        <MaterialIcons name="arrow-forward" size={22} color={colors.primary} />
+        <View style={styles.person}>
+          <Avatar name={payer === "you" ? friendName : meName} size={56} />
+          <AppText variant="label" color="textMuted">
+            {payer === "you" ? friendName : "You"}
+          </AppText>
+        </View>
       </View>
 
-      <Text style={styles.sectionLabel}>Amount</Text>
-      <TextInput
-        style={styles.input}
+      <View style={styles.field}>
+        <AppText variant="label" color="textMuted">
+          WHO PAID
+        </AppText>
+        <SegmentedControl
+          value={payer}
+          onChange={setPayer}
+          options={[
+            { value: "you", label: "You paid" },
+            { value: "them", label: `${friendName} paid` },
+          ]}
+        />
+      </View>
+
+      <FormField
+        label="Amount"
         placeholder="0.00"
         keyboardType="decimal-pad"
         value={amountInput}
         onChangeText={setAmountInput}
+        error={error}
       />
 
-      <Text style={styles.sectionLabel}>Date</Text>
-      <DateField value={settleDate} onChange={setSettleDate} />
+      <View style={styles.field}>
+        <AppText variant="label" color="textMuted">
+          DATE
+        </AppText>
+        <DateField value={settleDate} onChange={setSettleDate} />
+      </View>
 
-      {error && <Text style={styles.error}>{error}</Text>}
-
-      <Pressable style={styles.saveButton} disabled={saving} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>{saving ? "Saving..." : "Record settlement"}</Text>
-      </Pressable>
-    </View>
+      <PrimaryButton
+        label={saving ? "Saving…" : "Mark as settled"}
+        full
+        loading={saving}
+        onPress={handleSave}
+        style={styles.submit}
+      />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
-    gap: 8,
+  },
+  content: {
+    padding: spacing.lg,
+    gap: spacing.gutter,
     ...centeredContent,
   },
-  hint: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 12,
+  headline: {
+    textAlign: "center",
   },
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666",
-    marginTop: 8,
-  },
-  chipRow: {
+  people: {
     flexDirection: "row",
-    gap: 8,
-  },
-  chip: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-  chipSelected: {
-    backgroundColor: "#2f6feb",
-    borderColor: "#2f6feb",
-  },
-  chipText: {
-    fontSize: 13,
-    color: "#333",
-  },
-  chipTextSelected: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  error: {
-    color: "#d32f2f",
-    marginTop: 8,
-  },
-  saveButton: {
-    backgroundColor: "#2f6feb",
-    borderRadius: 8,
-    paddingVertical: 12,
     alignItems: "center",
-    marginTop: 16,
+    justifyContent: "center",
+    gap: spacing.lg,
+    paddingVertical: spacing.sm,
   },
-  saveButtonText: {
-    color: "#fff",
-    fontWeight: "600",
+  person: {
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  field: {
+    gap: spacing.xs,
+  },
+  submit: {
+    marginTop: spacing.sm,
   },
 });

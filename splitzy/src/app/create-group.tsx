@@ -1,9 +1,11 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 
+import { AppText, Avatar, Card, FormField, PrimaryButton } from "@/components/ui";
 import { centeredContent } from "@/constants/layout";
+import { colors, spacing } from "@/constants/theme";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useFriends } from "@/hooks/use-friends";
 import { createGroup } from "@/lib/groups";
@@ -25,11 +27,8 @@ export default function CreateGroupScreen() {
   function toggleMember(uid: string) {
     setSelectedUids((prev) => {
       const next = new Set(prev);
-      if (next.has(uid)) {
-        next.delete(uid);
-      } else {
-        next.add(uid);
-      }
+      if (next.has(uid)) next.delete(uid);
+      else next.add(uid);
       return next;
     });
   }
@@ -69,140 +68,114 @@ export default function CreateGroupScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <TextInput
-        style={styles.input}
-        placeholder="Group name"
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <FormField
+        label="Group name"
+        placeholder="Weekend trip"
         value={name}
         onChangeText={setName}
+        error={error}
       />
-      <TextInput
-        style={[styles.input, styles.descriptionInput]}
-        placeholder="Description (optional)"
+      <FormField
+        label="Description (optional)"
+        placeholder="What's this group for?"
         value={description}
         onChangeText={setDescription}
         multiline
       />
 
-      <Text style={styles.sectionLabel}>Add friends</Text>
+      <AppText variant="label" color="textMuted" style={styles.sectionLabel}>
+        ADD FRIENDS
+      </AppText>
 
       {friends.length === 0 ? (
-        <Text style={styles.noFriends}>
+        <AppText variant="body" color="textFaint">
           You don&apos;t have any friends yet — add some first, or invite someone new below.
-        </Text>
+        </AppText>
       ) : (
-        <FlatList
-          data={friends}
-          keyExtractor={(item) => item.uid}
-          style={styles.friendsList}
-          renderItem={({ item }) => {
-            const selected = selectedUids.has(item.uid);
+        <Card padded={false}>
+          {friends.map((friend, i) => {
+            const selected = selectedUids.has(friend.uid);
             return (
-              <Pressable style={styles.friendRow} onPress={() => toggleMember(item.uid)}>
+              <Pressable
+                key={friend.uid}
+                onPress={() => toggleMember(friend.uid)}
+                style={[styles.friendRow, i > 0 && styles.rowDivider]}>
                 <MaterialIcons
                   name={selected ? "check-box" : "check-box-outline-blank"}
                   size={22}
-                  color={selected ? "#2f6feb" : "#bbb"}
+                  color={selected ? colors.primary : colors.borderStrong}
                 />
+                <Avatar name={friend.displayName || friend.email} size={36} />
                 <View style={styles.friendInfo}>
-                  <Text style={styles.friendName}>{item.displayName || item.email}</Text>
-                  <Text style={styles.friendEmail}>{item.email}</Text>
+                  <AppText variant="bodySemibold" numberOfLines={1}>
+                    {friend.displayName || friend.email}
+                  </AppText>
+                  <AppText variant="body" color="textMuted" numberOfLines={1}>
+                    {friend.email}
+                  </AppText>
                 </View>
               </Pressable>
             );
-          }}
-        />
+          })}
+        </Card>
       )}
 
       <Pressable style={styles.inviteRow} onPress={handleInvite}>
-        <MaterialIcons name="person-add" size={18} color="#2f6feb" />
-        <Text style={styles.inviteText}>Invite someone not on Splitzy yet</Text>
+        <MaterialIcons name="person-add" size={18} color={colors.primary} />
+        <AppText variant="bodySemibold" color="primary">
+          Invite someone not on Splitzy yet
+        </AppText>
       </Pressable>
-      {inviteStatus && <Text style={styles.inviteStatus}>{inviteStatus}</Text>}
+      {inviteStatus && (
+        <AppText variant="body" color="primary">
+          {inviteStatus}
+        </AppText>
+      )}
 
-      {error && <Text style={styles.error}>{error}</Text>}
-
-      <Pressable style={styles.createButton} disabled={creating} onPress={handleCreate}>
-        <Text style={styles.createButtonText}>{creating ? "Creating..." : "Create group"}</Text>
-      </Pressable>
-    </View>
+      <PrimaryButton
+        label={creating ? "Creating…" : "Create group"}
+        full
+        loading={creating}
+        onPress={handleCreate}
+        style={styles.submit}
+      />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
-    gap: 12,
+  },
+  content: {
+    padding: spacing.lg,
+    gap: spacing.gutter,
     ...centeredContent,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  descriptionInput: {
-    minHeight: 60,
-    textAlignVertical: "top",
-  },
   sectionLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666",
-    marginTop: 8,
-  },
-  noFriends: {
-    color: "#888",
-    fontSize: 14,
-  },
-  friendsList: {
-    maxHeight: 220,
+    marginTop: spacing.xs,
   },
   friendRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 8,
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+  rowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   friendInfo: {
     flex: 1,
-  },
-  friendName: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  friendEmail: {
-    fontSize: 12,
-    color: "#666",
+    gap: 2,
   },
   inviteRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingVertical: 10,
+    gap: spacing.sm,
   },
-  inviteText: {
-    color: "#2f6feb",
-    fontWeight: "600",
-  },
-  inviteStatus: {
-    color: "#2f6feb",
-    fontSize: 12,
-  },
-  error: {
-    color: "#d32f2f",
-  },
-  createButton: {
-    backgroundColor: "#2f6feb",
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  createButtonText: {
-    color: "#fff",
-    fontWeight: "600",
+  submit: {
+    marginTop: spacing.sm,
   },
 });

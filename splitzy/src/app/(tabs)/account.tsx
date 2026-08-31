@@ -1,8 +1,10 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { deleteUser, sendEmailVerification, signOut } from "firebase/auth";
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, View } from "react-native";
 
+import { AppText, Avatar, Card, PrimaryButton, Screen } from "@/components/ui";
+import { colors, radius, spacing } from "@/constants/theme";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { getAuthErrorMessage } from "@/lib/auth-errors";
 import { auth } from "@/lib/firebase";
@@ -52,134 +54,104 @@ export default function AccountScreen() {
   }
 
   function confirmDelete() {
-    Alert.alert(
-      "Delete account",
-      "This permanently deletes your account. This can't be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: handleDelete },
-      ],
-    );
+    Alert.alert("Delete account", "This permanently deletes your account. This can't be undone.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: handleDelete },
+    ]);
   }
 
   return (
-    <View style={styles.container}>
+    <Screen>
+      <AppText variant="headlineLg" style={styles.title}>
+        Account
+      </AppText>
+
       <View style={styles.profile}>
-        <MaterialIcons name="account-circle" size={80} color="#888" />
-        <Text style={styles.name}>{user?.displayName || "Unnamed"}</Text>
-        <Text style={styles.email}>{user?.email}</Text>
+        <Avatar name={user?.displayName || user?.email || "?"} size={88} />
+        <AppText variant="title">{user?.displayName || "Unnamed"}</AppText>
+        <AppText variant="body" color="textMuted">
+          {user?.email}
+        </AppText>
       </View>
 
       {user && !user.emailVerified && (
-        <View style={styles.verifyBanner}>
+        <Card style={styles.verifyCard}>
           <View style={styles.verifyHeader}>
-            <MaterialIcons name="warning" size={18} color="#a15c00" />
-            <Text style={styles.verifyText}>
+            <MaterialIcons name="mark-email-unread" size={18} color={colors.primary} />
+            <AppText variant="bodySemibold" style={styles.verifyText}>
               {verificationSent
                 ? "Verification email sent — check your inbox."
                 : "Please verify your email address."}
-            </Text>
+            </AppText>
           </View>
           <View style={styles.verifyActions}>
-            <Pressable onPress={handleResendVerification} disabled={sendingVerification}>
-              <Text style={styles.verifyLink}>
-                {sendingVerification ? "Sending..." : "Resend email"}
-              </Text>
+            <Pressable onPress={handleResendVerification} disabled={sendingVerification} hitSlop={6}>
+              <AppText variant="bodySemibold" color="primary">
+                {sendingVerification ? "Sending…" : "Resend email"}
+              </AppText>
             </Pressable>
-            <Pressable onPress={handleCheckVerification} disabled={checkingVerification}>
-              <Text style={styles.verifyLink}>
-                {checkingVerification ? "Checking..." : "I've verified"}
-              </Text>
+            <Pressable onPress={handleCheckVerification} disabled={checkingVerification} hitSlop={6}>
+              <AppText variant="bodySemibold" color="primary">
+                {checkingVerification ? "Checking…" : "I've verified"}
+              </AppText>
             </Pressable>
           </View>
-        </View>
+        </Card>
       )}
 
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && (
+        <AppText variant="body" color="negative" style={styles.error}>
+          {error}
+        </AppText>
+      )}
 
-      <Pressable style={styles.logoutButton} onPress={handleLogout}>
-        <MaterialIcons name="logout" size={20} color="#2f6feb" />
-        <Text style={styles.logoutText}>Log out</Text>
-      </Pressable>
-
-      <Pressable style={styles.deleteButton} disabled={deleting} onPress={confirmDelete}>
-        <Text style={styles.deleteText}>
-          {deleting ? "Deleting account..." : "Delete account"}
-        </Text>
-      </Pressable>
-    </View>
+      <View style={styles.actions}>
+        <PrimaryButton label="Log out" icon="logout" variant="tonal" full onPress={handleLogout} />
+        <PrimaryButton
+          label={deleting ? "Deleting account…" : "Delete account"}
+          variant="ghost"
+          danger
+          full
+          disabled={deleting}
+          onPress={confirmDelete}
+        />
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
+  title: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
   },
   profile: {
     alignItems: "center",
-    gap: 4,
-    marginBottom: 32,
+    gap: spacing.xs,
+    marginBottom: spacing.xl,
   },
-  name: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginTop: 8,
-  },
-  email: {
-    fontSize: 14,
-    color: "#666",
-  },
-  verifyBanner: {
-    backgroundColor: "#fff4e0",
-    borderRadius: 8,
-    padding: 12,
-    gap: 8,
-    marginBottom: 16,
+  verifyCard: {
+    gap: spacing.md,
+    borderRadius: radius.md,
   },
   verifyHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: spacing.sm,
   },
   verifyText: {
     flex: 1,
-    color: "#7a4700",
   },
   verifyActions: {
     flexDirection: "row",
-    gap: 20,
-  },
-  verifyLink: {
-    color: "#2f6feb",
-    fontWeight: "600",
+    gap: spacing.lg,
   },
   error: {
-    color: "#d32f2f",
     textAlign: "center",
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
-  logoutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderColor: "#2f6feb",
-    borderRadius: 8,
-    paddingVertical: 12,
-    marginBottom: 16,
-  },
-  logoutText: {
-    color: "#2f6feb",
-    fontWeight: "600",
-  },
-  deleteButton: {
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  deleteText: {
-    color: "#d32f2f",
+  actions: {
+    marginTop: spacing.gutter,
+    gap: spacing.sm,
   },
 });

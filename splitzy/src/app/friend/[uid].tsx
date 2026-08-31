@@ -1,15 +1,20 @@
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import { NotFound } from "@/components/not-found";
+import { AppText, Avatar, Card, IconBadge, PrimaryButton } from "@/components/ui";
+import { colors, spacing } from "@/constants/theme";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useFriends } from "@/hooks/use-friends";
 import { useGroups } from "@/hooks/use-groups";
 import { useMyExpenses } from "@/hooks/use-my-expenses";
 import { computeBalancesByOtherUser } from "@/lib/expenses";
 import { formatCents } from "@/lib/money";
+
+function monthLabel(date: Date): string {
+  return date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
 
 export default function FriendDetailScreen() {
   const router = useRouter();
@@ -20,6 +25,7 @@ export default function FriendDetailScreen() {
   const { expenses, loading } = useMyExpenses(user?.uid);
 
   const friend = friends.find((f) => f.uid === friendUid);
+  const friendName = friend?.displayName || friend?.email || "Friend";
 
   const sharedExpenses = useMemo(
     () => expenses.filter((e) => e.participants.includes(friendUid)),
@@ -31,191 +37,202 @@ export default function FriendDetailScreen() {
     return computeBalancesByOtherUser(sharedExpenses, user.uid)[friendUid] ?? 0;
   }, [sharedExpenses, user, friendUid]);
 
+  // Group the expense list by month for section headers.
+  const sections = useMemo(() => {
+    const out: { label: string; items: typeof sharedExpenses }[] = [];
+    for (const expense of sharedExpenses) {
+      const date = expense.expenseDate ?? expense.createdAt;
+      const label = date ? monthLabel(date) : "Earlier";
+      const last = out[out.length - 1];
+      if (last && last.label === label) last.items.push(expense);
+      else out.push({ label, items: [expense] });
+    }
+    return out;
+  }, [sharedExpenses]);
+
   if (!friendsLoading && !friend) {
     return <NotFound />;
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Stack.Screen options={{ title: friendName }} />
+
       <View style={styles.header}>
-        <MaterialIcons name="account-circle" size={64} color="#888" />
-        <Text style={styles.name}>{friend?.displayName || friend?.email || "Friend"}</Text>
-        {balance === 0 ? (
-          <Text style={styles.settled}>Settled up</Text>
-        ) : (
-          <Text style={[styles.balance, balance > 0 ? styles.owedToYou : styles.youOwe]}>
-            {balance > 0
-              ? `Owes you ${formatCents(balance)}`
-              : `You owe ${formatCents(-balance)}`}
-          </Text>
+        <Avatar name={friendName} size={88} />
+        <AppText variant="body" color="textMuted" style={styles.balanceCaption}>
+          {balance === 0
+            ? "You're settled up"
+            : balance > 0
+              ? `${friendName} owes you`
+              : `You owe ${friendName}`}
+        </AppText>
+        {balance !== 0 && (
+          <AppText variant="displayCurrency" color={balance > 0 ? "positive" : "negative"}>
+            {formatCents(Math.abs(balance))}
+          </AppText>
         )}
 
-        <View style={styles.headerButtons}>
-          <Pressable
-            style={styles.addButton}
-            onPress={() => router.push({ pathname: "/add-expense", params: { friendUid } })}>
-            <MaterialIcons name="add" size={18} color="#fff" />
-            <Text style={styles.addButtonText}>Add expense</Text>
-          </Pressable>
-
+        <View style={styles.actions}>
+          <PrimaryButton
+            label="Add expense"
+            icon="add"
+            variant="tonal"
+            onPress={() => router.push({ pathname: "/add-expense", params: { friendUid } })}
+            style={styles.actionButton}
+          />
           {balance !== 0 && friend && (
-            <Pressable
-              style={styles.settleButton}
+            <PrimaryButton
+              label="Settle up"
+              icon="payments"
               onPress={() =>
-                router.push({ pathname: "/settle-up", params: { friendUid, balance: String(balance) } })
-              }>
-              <MaterialIcons name="swap-horiz" size={18} color="#2f6feb" />
-              <Text style={styles.settleButtonText}>Settle up</Text>
-            </Pressable>
+                router.push({
+                  pathname: "/settle-up",
+                  params: { friendUid, balance: String(balance) },
+                })
+              }
+              style={styles.actionButton}
+            />
           )}
         </View>
       </View>
 
-      {!loading && sharedExpenses.length === 0 && (
+      {!loading && sharedExpenses.length === 0 ? (
         <View style={styles.empty}>
-          <MaterialIcons name="receipt-long" size={56} color="#bbb" />
-          <Text style={styles.emptyText}>No expenses yet</Text>
+          <IconBadge name="receipt-long" tone="neutral" size={56} />
+          <AppText variant="body" color="textFaint">
+            No shared expenses yet
+          </AppText>
+        </View>
+      ) : (
+        <View style={styles.list}>
+          {sections.map((section) => (
+            <View key={section.label} style={styles.section}>
+              <AppText variant="label" color="textMuted" style={styles.sectionLabel}>
+                {section.label.toUpperCase()}
+              </AppText>
+              <Card padded={false}>
+                {section.items.map((item, i) => {
+                  const youPaid = item.paidBy === user?.uid;
+                  const mySplit = item.splits[user?.uid ?? ""] ?? 0;
+                  const expenseGroup = item.groupId
+                    ? groups.find((g) => g.id === item.groupId)
+                    : undefined;
+                  const dateLabel = (item.expenseDate ?? item.createdAt)?.toLocaleDateString(
+                    undefined,
+                    { month: "short", day: "numeric" },
+                  );
+                  const isSettlement = item.splitType === "settlement";
+                  const impact = youPaid ? item.amountCents - mySplit : -mySplit;
+                  return (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => router.push(`/expense/${item.id}`)}
+                      style={({ pressed }) => [
+                        styles.row,
+                        i > 0 && styles.rowDivider,
+                        pressed && styles.rowPressed,
+                      ]}>
+                      <IconBadge
+                        name={isSettlement ? "swap-horiz" : "receipt-long"}
+                        tone={isSettlement ? "neutral" : "primary"}
+                        size={40}
+                      />
+                      <View style={styles.rowInfo}>
+                        <AppText variant="bodySemibold" numberOfLines={1}>
+                          {isSettlement
+                            ? youPaid
+                              ? `You paid ${friendName}`
+                              : `${friendName} paid you`
+                            : item.description}
+                        </AppText>
+                        <AppText variant="body" color="textMuted" numberOfLines={1}>
+                          {dateLabel}
+                          {expenseGroup ? ` · ${expenseGroup.name}` : ""}
+                        </AppText>
+                      </View>
+                      {!isSettlement && (
+                        <View style={styles.rowAmount}>
+                          <AppText variant="label" color="textMuted">
+                            {youPaid ? "you lent" : "you borrowed"}
+                          </AppText>
+                          <AppText
+                            variant="bodyLgSemibold"
+                            color={youPaid ? "positive" : "negative"}>
+                            {formatCents(Math.abs(impact))}
+                          </AppText>
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </Card>
+            </View>
+          ))}
         </View>
       )}
-
-      <FlatList
-        data={sharedExpenses}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => {
-          const youPaid = item.paidBy === user?.uid;
-          const mySplit = item.splits[user?.uid ?? ""] ?? 0;
-          const expenseGroup = item.groupId ? groups.find((g) => g.id === item.groupId) : undefined;
-          const dateLabel = (item.expenseDate ?? item.createdAt)?.toLocaleDateString();
-          const isSettlement = item.splitType === "settlement";
-          return (
-            <Pressable
-              style={styles.expenseRow}
-              onPress={() => router.push(`/expense/${item.id}`)}>
-              <MaterialIcons
-                name={isSettlement ? "swap-horiz" : "receipt-long"}
-                size={24}
-                color="#2f6feb"
-              />
-              <View style={styles.expenseInfo}>
-                <Text style={styles.expenseDescription}>
-                  {isSettlement
-                    ? youPaid
-                      ? `You paid ${friend?.displayName || "them"}`
-                      : `${friend?.displayName || "They"} paid you`
-                    : item.description}
-                </Text>
-                <Text style={styles.expenseMeta}>
-                  {dateLabel ? `${dateLabel} · ` : ""}
-                  {!isSettlement && (youPaid ? "You paid" : `${friend?.displayName || "They"} paid`)}
-                  {!isSettlement && " · "}
-                  {formatCents(item.amountCents)}
-                  {expenseGroup ? ` · ${expenseGroup.name}` : ""}
-                </Text>
-              </View>
-              <Text style={[styles.expenseShare, youPaid ? styles.owedToYou : styles.youOwe]}>
-                {youPaid ? `+${formatCents(item.amountCents - mySplit)}` : `-${formatCents(mySplit)}`}
-              </Text>
-            </Pressable>
-          );
-        }}
-      />
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 20,
+  },
+  content: {
+    paddingHorizontal: spacing.screen,
+    paddingBottom: spacing.xl,
   },
   header: {
     alignItems: "center",
-    gap: 4,
-    paddingVertical: 24,
+    gap: spacing.xs,
+    paddingVertical: spacing.lg,
   },
-  name: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginTop: 8,
+  balanceCaption: {
+    marginTop: spacing.sm,
   },
-  balance: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  settled: {
-    fontSize: 16,
-    color: "#888",
-  },
-  owedToYou: {
-    color: "#2e7d32",
-  },
-  youOwe: {
-    color: "#d32f2f",
-  },
-  headerButtons: {
+  actions: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 12,
+    gap: spacing.sm,
+    marginTop: spacing.gutter,
+    alignSelf: "stretch",
   },
-  addButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#2f6feb",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  addButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  settleButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderColor: "#2f6feb",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  settleButtonText: {
-    color: "#2f6feb",
-    fontWeight: "600",
+  actionButton: {
+    flex: 1,
   },
   empty: {
     alignItems: "center",
-    paddingTop: 40,
-    gap: 6,
-  },
-  emptyText: {
-    color: "#888",
+    gap: spacing.sm,
+    paddingTop: spacing.xl,
   },
   list: {
-    gap: 4,
-    paddingBottom: 24,
+    gap: spacing.lg,
   },
-  expenseRow: {
+  section: {
+    gap: spacing.sm,
+  },
+  sectionLabel: {
+    paddingHorizontal: spacing.xs,
+  },
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 10,
+    gap: spacing.md,
+    padding: spacing.gutter,
   },
-  expenseInfo: {
+  rowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  rowPressed: {
+    backgroundColor: colors.surfaceAlt,
+  },
+  rowInfo: {
     flex: 1,
+    gap: 2,
   },
-  expenseDescription: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  expenseMeta: {
-    fontSize: 12,
-    color: "#666",
-  },
-  expenseShare: {
-    fontSize: 14,
-    fontWeight: "600",
+  rowAmount: {
+    alignItems: "flex-end",
+    gap: 2,
   },
 });

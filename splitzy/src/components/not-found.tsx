@@ -1,6 +1,8 @@
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Link } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+
+import { AppText, IconBadge } from "@/components/ui";
+import { colors, radius, spacing } from "@/constants/theme";
 
 export function NotFound({
   title = "Nothing to split here",
@@ -11,16 +13,20 @@ export function NotFound({
 }) {
   return (
     <View style={styles.container}>
-      <MaterialIcons name="sentiment-dissatisfied" size={72} color="#bbb" />
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
-      {/* Expo Router's own guidance for +not-found screens specifically:
-          use a Link back to "/", not the imperative router API — a
-          +not-found screen isn't always mounted the same way a normal
-          in-stack screen is, and router.replace() wasn't resolving there. */}
+      <IconBadge name="search-off" tone="neutral" size={72} />
+      <AppText variant="title" style={styles.title}>
+        {title}
+      </AppText>
+      <AppText variant="body" color="textMuted" style={styles.message}>
+        {message}
+      </AppText>
+      {/* Expo Router's own guidance for +not-found screens: use a Link back
+          to "/", not the imperative router API. */}
       <Link href="/" asChild>
         <Pressable style={styles.button}>
-          <Text style={styles.buttonText}>Back to Splitzy</Text>
+          <AppText variant="bodyLgSemibold" color="onPrimary">
+            Back to Splitzy
+          </AppText>
         </Pressable>
       </Link>
     </View>
@@ -32,30 +38,22 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 32,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    backgroundColor: colors.background,
   },
   title: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginTop: 12,
+    marginTop: spacing.md,
     textAlign: "center",
   },
   message: {
-    fontSize: 14,
-    color: "#666",
     textAlign: "center",
-    lineHeight: 20,
   },
   button: {
-    backgroundColor: "#2f6feb",
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    marginTop: 20,
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "600",
+    marginTop: spacing.lg,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.lg,
   },
 });

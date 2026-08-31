@@ -1,9 +1,11 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 
+import { AppText, Avatar, Card } from "@/components/ui";
 import { centeredContent } from "@/constants/layout";
+import { colors, spacing } from "@/constants/theme";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useFriends } from "@/hooks/use-friends";
 import { useGroups } from "@/hooks/use-groups";
@@ -25,8 +27,10 @@ export default function ManageMembersScreen() {
 
   if (!group || !user?.email) {
     return (
-      <View style={[styles.container, styles.content]}>
-        <Text style={styles.emptyText}>Group not found.</Text>
+      <View style={styles.centered}>
+        <AppText variant="body" color="textFaint">
+          Group not found.
+        </AppText>
       </View>
     );
   }
@@ -71,50 +75,76 @@ export default function ManageMembersScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.sectionLabel}>Current members</Text>
-      {group.members.map((uid) => {
-        const profile = group.memberProfiles[uid];
-        const isMe = uid === user.uid;
-        return (
-          <View key={uid} style={styles.row}>
-            <MaterialIcons name="account-circle" size={32} color="#888" />
-            <Text style={styles.rowText}>
-              {isMe ? "You" : profile?.displayName || profile?.email || uid}
-            </Text>
-            {!isMe && (
-              <Pressable
-                onPress={() => handleRemove(uid, profile?.displayName || profile?.email || uid)}
-                disabled={busyUid === uid}
-                hitSlop={8}>
-                <MaterialIcons name="close" size={20} color="#d32f2f" />
-              </Pressable>
-            )}
-          </View>
-        );
-      })}
+      <AppText variant="label" color="textMuted">
+        CURRENT MEMBERS
+      </AppText>
+      <Card padded={false}>
+        {group.members.map((uid, i) => {
+          const profile = group.memberProfiles[uid];
+          const isMe = uid === user.uid;
+          const label = isMe ? "You" : profile?.displayName || profile?.email || uid;
+          return (
+            <View key={uid} style={[styles.row, i > 0 && styles.rowDivider]}>
+              <Avatar name={label} size={36} />
+              <AppText variant="bodySemibold" style={styles.rowText} numberOfLines={1}>
+                {label}
+              </AppText>
+              {!isMe && (
+                <Pressable
+                  onPress={() => handleRemove(uid, profile?.displayName || profile?.email || uid)}
+                  disabled={busyUid === uid}
+                  hitSlop={8}>
+                  <MaterialIcons name="close" size={20} color={colors.negative} />
+                </Pressable>
+              )}
+            </View>
+          );
+        })}
+      </Card>
 
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && (
+        <AppText variant="body" color="negative">
+          {error}
+        </AppText>
+      )}
 
-      <Text style={styles.sectionLabel}>Add friends</Text>
+      <AppText variant="label" color="textMuted" style={styles.sectionLabel}>
+        ADD FRIENDS
+      </AppText>
       {addableFriends.length === 0 ? (
-        <Text style={styles.emptyText}>All your friends are already in this group.</Text>
+        <AppText variant="body" color="textFaint">
+          All your friends are already in this group.
+        </AppText>
       ) : (
-        addableFriends.map((friend) => (
-          <View key={friend.uid} style={styles.row}>
-            <MaterialIcons name="account-circle" size={32} color="#888" />
-            <Text style={styles.rowText}>{friend.displayName || friend.email}</Text>
-            <Pressable onPress={() => handleAdd(friend)} disabled={busyUid === friend.uid} hitSlop={8}>
-              <MaterialIcons name="add-circle-outline" size={22} color="#2f6feb" />
-            </Pressable>
-          </View>
-        ))
+        <Card padded={false}>
+          {addableFriends.map((friend, i) => (
+            <View key={friend.uid} style={[styles.row, i > 0 && styles.rowDivider]}>
+              <Avatar name={friend.displayName || friend.email} size={36} />
+              <AppText variant="bodySemibold" style={styles.rowText} numberOfLines={1}>
+                {friend.displayName || friend.email}
+              </AppText>
+              <Pressable
+                onPress={() => handleAdd(friend)}
+                disabled={busyUid === friend.uid}
+                hitSlop={8}>
+                <MaterialIcons name="add-circle-outline" size={22} color={colors.primary} />
+              </Pressable>
+            </View>
+          ))}
+        </Card>
       )}
 
       <Pressable style={styles.inviteRow} onPress={handleInvite}>
-        <MaterialIcons name="person-add" size={18} color="#2f6feb" />
-        <Text style={styles.inviteText}>Invite someone not on Splitzy yet</Text>
+        <MaterialIcons name="person-add" size={18} color={colors.primary} />
+        <AppText variant="bodySemibold" color="primary">
+          Invite someone not on Splitzy yet
+        </AppText>
       </Pressable>
-      {inviteStatus && <Text style={styles.inviteStatus}>{inviteStatus}</Text>}
+      {inviteStatus && (
+        <AppText variant="body" color="primary">
+          {inviteStatus}
+        </AppText>
+      )}
     </ScrollView>
   );
 }
@@ -124,48 +154,35 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 24,
+    padding: spacing.lg,
+    gap: spacing.md,
     ...centeredContent,
   },
-  emptyText: {
-    color: "#888",
-    fontSize: 14,
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   sectionLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#888",
-    textTransform: "uppercase",
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: spacing.sm,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 8,
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+  rowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   rowText: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  error: {
-    color: "#d32f2f",
-    marginTop: 8,
   },
   inviteRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingVertical: 16,
-  },
-  inviteText: {
-    color: "#2f6feb",
-    fontWeight: "600",
-  },
-  inviteStatus: {
-    color: "#2f6feb",
-    fontSize: 12,
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
   },
 });

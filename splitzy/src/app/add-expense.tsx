@@ -1,10 +1,19 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 
 import { DateField } from "@/components/date-field";
+import {
+  AppText,
+  Avatar,
+  Card,
+  FormField,
+  PrimaryButton,
+  SegmentedControl,
+} from "@/components/ui";
 import { centeredContent } from "@/constants/layout";
+import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useFriends } from "@/hooks/use-friends";
 import { useGroups } from "@/hooks/use-groups";
@@ -56,8 +65,6 @@ export default function AddExpenseScreen() {
     : undefined;
   const isEditMode = !!params.expenseId;
 
-  // In edit mode, the group/friend context comes from the expense itself
-  // rather than route params, since it's already fixed for that expense.
   const effectiveGroupId = editingExpense ? editingExpense.groupId : params.groupId;
   const group = effectiveGroupId ? groups.find((g) => g.id === effectiveGroupId) : undefined;
   const effectiveFriendUid =
@@ -67,7 +74,7 @@ export default function AddExpenseScreen() {
   const friend = effectiveFriendUid ? friends.find((f) => f.uid === effectiveFriendUid) : undefined;
 
   useEffect(() => {
-    navigation.setOptions({ title: isEditMode ? "Edit Expense" : "Add Expense" });
+    navigation.setOptions({ title: isEditMode ? "Edit expense" : "Add expense" });
   }, [navigation, isEditMode]);
 
   const allParticipants: UserProfile[] = useMemo(() => {
@@ -122,16 +129,19 @@ export default function AddExpenseScreen() {
     }
   }, [editingExpense]);
 
-  const effectiveIncluded =
-    includedUids ?? new Set(allParticipants.map((p) => p.uid));
+  const effectiveIncluded = includedUids ?? new Set(allParticipants.map((p) => p.uid));
   const includedParticipants = allParticipants.filter((p) => effectiveIncluded.has(p.uid));
   const effectivePaidBy = paidBy || me?.uid || "";
   const amountCents = parseAmountToCents(amountInput);
 
   function toggleIncluded(uid: string) {
-    setIncludedUids(new Set([...effectiveIncluded].includes(uid)
-      ? [...effectiveIncluded].filter((id) => id !== uid)
-      : [...effectiveIncluded, uid]));
+    setIncludedUids(
+      new Set(
+        [...effectiveIncluded].includes(uid)
+          ? [...effectiveIncluded].filter((id) => id !== uid)
+          : [...effectiveIncluded, uid],
+      ),
+    );
   }
 
   const equalPreview = useMemo(() => {
@@ -237,122 +247,150 @@ export default function AddExpenseScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <TextInput
-        style={styles.input}
-        placeholder="Description"
-        value={description}
-        onChangeText={setDescription}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Amount"
-        keyboardType="decimal-pad"
-        value={amountInput}
-        onChangeText={setAmountInput}
-      />
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <FormField
+          label="Description"
+          placeholder="e.g. Dinner"
+          value={description}
+          onChangeText={setDescription}
+        />
 
-      <Text style={styles.sectionLabel}>Date</Text>
-      <DateField value={expenseDate} onChange={setExpenseDate} />
+        <View style={styles.amountBlock}>
+          <AppText variant="label" color="textMuted">
+            TOTAL AMOUNT
+          </AppText>
+          <View style={styles.amountRow}>
+            <AppText style={styles.currency}>$</AppText>
+            <TextInput
+              style={styles.amountInput}
+              placeholder="0.00"
+              placeholderTextColor={colors.textFaint}
+              keyboardType="decimal-pad"
+              value={amountInput}
+              onChangeText={setAmountInput}
+            />
+          </View>
+        </View>
 
-      <Text style={styles.sectionLabel}>Paid by</Text>
-      <View style={styles.chipRow}>
-        {includedParticipants.map((p) => {
-          const selected = p.uid === effectivePaidBy;
-          return (
-            <Pressable
-              key={p.uid}
-              style={[styles.chip, selected && styles.chipSelected]}
-              onPress={() => setPaidBy(p.uid)}>
-              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                {p.uid === me?.uid ? "You" : p.displayName || p.email}
-              </Text>
-            </Pressable>
-          );
-        })}
+        <View style={styles.field}>
+          <AppText variant="label" color="textMuted">
+            DATE
+          </AppText>
+          <DateField value={expenseDate} onChange={setExpenseDate} />
+        </View>
+
+        <View style={styles.field}>
+          <AppText variant="label" color="textMuted">
+            PAID BY
+          </AppText>
+          <View style={styles.chipRow}>
+            {includedParticipants.map((p) => {
+              const selected = p.uid === effectivePaidBy;
+              return (
+                <Pressable
+                  key={p.uid}
+                  onPress={() => setPaidBy(p.uid)}
+                  style={[styles.chip, selected && styles.chipSelected]}>
+                  <AppText
+                    variant="bodySemibold"
+                    color={selected ? "onPrimary" : "textMuted"}>
+                    {p.uid === me?.uid ? "You" : p.displayName || p.email}
+                  </AppText>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.field}>
+          <AppText variant="label" color="textMuted">
+            SPLIT
+          </AppText>
+          <SegmentedControl options={SPLIT_TYPES} value={splitType} onChange={setSplitType} />
+        </View>
+
+        <Card padded={false}>
+          {allParticipants.map((p, i) => {
+            const included = effectiveIncluded.has(p.uid);
+            const label = p.uid === me?.uid ? "You" : p.displayName || p.email;
+            return (
+              <View key={p.uid} style={[styles.participantRow, i > 0 && styles.rowDivider]}>
+                <Pressable style={styles.participantToggle} onPress={() => toggleIncluded(p.uid)}>
+                  <MaterialIcons
+                    name={included ? "check-box" : "check-box-outline-blank"}
+                    size={22}
+                    color={included ? colors.primary : colors.borderStrong}
+                  />
+                  <Avatar name={label} size={32} />
+                  <AppText variant="bodySemibold" numberOfLines={1} style={styles.participantName}>
+                    {label}
+                  </AppText>
+                </Pressable>
+
+                {included && splitType === "equal" && equalPreview && (
+                  <AppText variant="bodySemibold" color="textMuted">
+                    {formatCents(equalPreview[p.uid] ?? 0)}
+                  </AppText>
+                )}
+                {included && splitType === "percentage" && (
+                  <TextInput
+                    style={styles.smallInput}
+                    keyboardType="decimal-pad"
+                    placeholder="%"
+                    placeholderTextColor={colors.textFaint}
+                    value={percentInputs[p.uid] ?? ""}
+                    onChangeText={(v) => setPercentInputs((prev) => ({ ...prev, [p.uid]: v }))}
+                  />
+                )}
+                {included && splitType === "exact" && (
+                  <TextInput
+                    style={styles.smallInput}
+                    keyboardType="decimal-pad"
+                    placeholder="$"
+                    placeholderTextColor={colors.textFaint}
+                    value={exactInputs[p.uid] ?? ""}
+                    onChangeText={(v) => setExactInputs((prev) => ({ ...prev, [p.uid]: v }))}
+                  />
+                )}
+              </View>
+            );
+          })}
+        </Card>
+
+        {splitType === "percentage" && (
+          <AppText
+            variant="body"
+            color={Math.abs(percentTotal - 100) > 0.01 ? "negative" : "textMuted"}
+            style={styles.totalHint}>
+            Total: {percentTotal.toFixed(2)}% of 100%
+          </AppText>
+        )}
+        {splitType === "exact" && amountCents && (
+          <AppText
+            variant="body"
+            color={exactTotalCents !== amountCents ? "negative" : "textMuted"}
+            style={styles.totalHint}>
+            Total: {formatCents(exactTotalCents)} of {formatCents(amountCents)}
+          </AppText>
+        )}
+
+        {error && (
+          <AppText variant="body" color="negative">
+            {error}
+          </AppText>
+        )}
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <PrimaryButton
+          label={saving ? "Saving…" : isEditMode ? "Save changes" : "Save expense"}
+          full
+          loading={saving}
+          onPress={handleSave}
+        />
       </View>
-
-      <Text style={styles.sectionLabel}>Split</Text>
-      <View style={styles.chipRow}>
-        {SPLIT_TYPES.map((t) => {
-          const selected = t.value === splitType;
-          return (
-            <Pressable
-              key={t.value}
-              style={[styles.chip, selected && styles.chipSelected]}
-              onPress={() => setSplitType(t.value)}>
-              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                {t.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <View style={styles.participants}>
-        {allParticipants.map((p) => {
-          const included = effectiveIncluded.has(p.uid);
-          const label = p.uid === me?.uid ? "You" : p.displayName || p.email;
-          return (
-            <View key={p.uid} style={styles.participantRow}>
-              <Pressable
-                style={styles.participantToggle}
-                onPress={() => toggleIncluded(p.uid)}>
-                <MaterialIcons
-                  name={included ? "check-box" : "check-box-outline-blank"}
-                  size={22}
-                  color={included ? "#2f6feb" : "#bbb"}
-                />
-                <Text style={styles.participantName}>{label}</Text>
-              </Pressable>
-
-              {included && splitType === "equal" && equalPreview && (
-                <Text style={styles.participantAmount}>
-                  {formatCents(equalPreview[p.uid] ?? 0)}
-                </Text>
-              )}
-              {included && splitType === "percentage" && (
-                <TextInput
-                  style={styles.smallInput}
-                  keyboardType="decimal-pad"
-                  placeholder="%"
-                  value={percentInputs[p.uid] ?? ""}
-                  onChangeText={(v) => setPercentInputs((prev) => ({ ...prev, [p.uid]: v }))}
-                />
-              )}
-              {included && splitType === "exact" && (
-                <TextInput
-                  style={styles.smallInput}
-                  keyboardType="decimal-pad"
-                  placeholder="$"
-                  value={exactInputs[p.uid] ?? ""}
-                  onChangeText={(v) => setExactInputs((prev) => ({ ...prev, [p.uid]: v }))}
-                />
-              )}
-            </View>
-          );
-        })}
-      </View>
-
-      {splitType === "percentage" && (
-        <Text style={[styles.totalHint, Math.abs(percentTotal - 100) > 0.01 && styles.totalHintError]}>
-          Total: {percentTotal.toFixed(2)}% of 100%
-        </Text>
-      )}
-      {splitType === "exact" && amountCents && (
-        <Text style={[styles.totalHint, exactTotalCents !== amountCents && styles.totalHintError]}>
-          Total: {formatCents(exactTotalCents)} of {formatCents(amountCents)}
-        </Text>
-      )}
-
-      {error && <Text style={styles.error}>{error}</Text>}
-
-      <Pressable style={styles.saveButton} disabled={saving} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>
-          {saving ? "Saving..." : isEditMode ? "Save changes" : "Save expense"}
-        </Text>
-      </Pressable>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -361,100 +399,103 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 24,
-    gap: 12,
+    padding: spacing.lg,
+    paddingBottom: 96,
+    gap: spacing.gutter,
     ...centeredContent,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  field: {
+    gap: spacing.xs,
   },
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666",
+  amountBlock: {
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+  },
+  amountRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.xs,
+  },
+  currency: {
+    fontFamily: fonts.semibold,
+    fontSize: 22,
+    lineHeight: 28,
+    color: colors.primary,
     marginTop: 8,
+  },
+  amountInput: {
+    fontFamily: fonts.bold,
+    fontSize: 40,
+    lineHeight: 48,
+    color: colors.primary,
+    minWidth: 120,
+    textAlign: "center",
+    textAlignVertical: "center",
+    includeFontPadding: false,
+    padding: 0,
   },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: spacing.sm,
   },
   chip: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.gutter,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surfaceSunken,
   },
   chipSelected: {
-    backgroundColor: "#2f6feb",
-    borderColor: "#2f6feb",
-  },
-  chipText: {
-    fontSize: 13,
-    color: "#333",
-  },
-  chipTextSelected: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  participants: {
-    gap: 4,
-    marginTop: 8,
+    backgroundColor: colors.primary,
   },
   participantRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 6,
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  rowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   participantToggle: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: spacing.sm,
     flex: 1,
   },
   participantName: {
-    fontSize: 15,
-  },
-  participantAmount: {
-    fontSize: 14,
-    color: "#666",
+    flex: 1,
   },
   smallInput: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    width: 70,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    width: 76,
     textAlign: "right",
+    textAlignVertical: "center",
+    includeFontPadding: false,
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    color: colors.text,
   },
   totalHint: {
-    fontSize: 12,
-    color: "#666",
     textAlign: "right",
   },
-  totalHintError: {
-    color: "#d32f2f",
-    fontWeight: "600",
-  },
-  error: {
-    color: "#d32f2f",
-  },
-  saveButton: {
-    backgroundColor: "#2f6feb",
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  saveButtonText: {
-    color: "#fff",
-    fontWeight: "600",
+  footer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: spacing.screen,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
 });
