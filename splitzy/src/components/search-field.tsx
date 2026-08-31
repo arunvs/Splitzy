@@ -2,7 +2,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Pressable, StyleSheet, TextInput } from "react-native";
 
-import { colors, fonts, radius } from "@/constants/theme";
+import { colors, fonts, radius, webInputReset } from "@/constants/theme";
 
 type SearchFieldProps = {
   value: string;
@@ -54,7 +54,7 @@ export function SearchField({
       <MaterialIcons name="search" size={20} color={colors.primary} />
       <TextInput
         ref={inputRef}
-        style={styles.input}
+        style={[styles.input, webInputReset]}
         placeholder={placeholder}
         placeholderTextColor={colors.textFaint}
         value={value}

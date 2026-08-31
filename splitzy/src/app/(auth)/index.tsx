@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, TextInput, View } from "react-native";
 
 import { AppText, FormField, PrimaryButton, Screen } from "@/components/ui";
 import { centeredContent } from "@/constants/layout";
-import { colors, fonts, radius, spacing } from "@/constants/theme";
+import { colors, fonts, radius, spacing, webInputReset } from "@/constants/theme";
 import { getAuthErrorMessage } from "@/lib/auth-errors";
 import { auth } from "@/lib/firebase";
 
@@ -52,7 +52,7 @@ export default function LoginScreen() {
           </AppText>
           <View style={styles.passwordRow}>
             <TextInput
-              style={styles.passwordInput}
+              style={[styles.passwordInput, webInputReset]}
               placeholder="••••••••"
               placeholderTextColor={colors.textFaint}
               secureTextEntry={!showPassword}

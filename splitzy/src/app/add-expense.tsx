@@ -13,7 +13,7 @@ import {
   SegmentedControl,
 } from "@/components/ui";
 import { centeredContent } from "@/constants/layout";
-import { colors, fonts, radius, spacing } from "@/constants/theme";
+import { colors, fonts, radius, spacing, webInputReset } from "@/constants/theme";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useFriends } from "@/hooks/use-friends";
 import { useGroups } from "@/hooks/use-groups";
@@ -263,12 +263,13 @@ export default function AddExpenseScreen() {
           <View style={styles.amountRow}>
             <AppText style={styles.currency}>$</AppText>
             <TextInput
-              style={styles.amountInput}
+              style={[styles.amountInput, webInputReset]}
               placeholder="0.00"
               placeholderTextColor={colors.textFaint}
               keyboardType="decimal-pad"
               value={amountInput}
               onChangeText={setAmountInput}
+              textAlign="center"
             />
           </View>
         </View>
@@ -335,7 +336,7 @@ export default function AddExpenseScreen() {
                 )}
                 {included && splitType === "percentage" && (
                   <TextInput
-                    style={styles.smallInput}
+                    style={[styles.smallInput, webInputReset]}
                     keyboardType="decimal-pad"
                     placeholder="%"
                     placeholderTextColor={colors.textFaint}
@@ -345,7 +346,7 @@ export default function AddExpenseScreen() {
                 )}
                 {included && splitType === "exact" && (
                   <TextInput
-                    style={styles.smallInput}
+                    style={[styles.smallInput, webInputReset]}
                     keyboardType="decimal-pad"
                     placeholder="$"
                     placeholderTextColor={colors.textFaint}
@@ -414,22 +415,21 @@ const styles = StyleSheet.create({
   },
   amountRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: spacing.xs,
+    alignItems: "center",
+    justifyContent: "center",
   },
   currency: {
     fontFamily: fonts.semibold,
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 24,
+    lineHeight: 48,
     color: colors.primary,
-    marginTop: 8,
   },
   amountInput: {
     fontFamily: fonts.bold,
     fontSize: 40,
     lineHeight: 48,
     color: colors.primary,
-    minWidth: 120,
+    width: 180,
     textAlign: "center",
     textAlignVertical: "center",
     includeFontPadding: false,

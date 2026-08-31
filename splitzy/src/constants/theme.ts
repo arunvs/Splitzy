@@ -125,4 +125,11 @@ export const shadow = {
   }) as ViewStyle,
 } as const;
 
+// On the web build, react-native-web renders TextInput as a real <input>, and
+// the browser paints its own (black) focus outline. Kill it — our inputs show
+// focus by turning the border blue instead. No-op on native.
+export const webInputReset = (
+  Platform.OS === "web" ? { outlineWidth: 0, outlineStyle: "none" } : null
+) as TextStyle | null;
+
 export const theme = { colors, typography, fonts, spacing, radius, shadow } as const;

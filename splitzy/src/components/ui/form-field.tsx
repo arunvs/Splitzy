@@ -1,7 +1,7 @@
-import { forwardRef } from "react";
+import { forwardRef, useState } from "react";
 import { StyleSheet, TextInput, type TextInputProps, View } from "react-native";
 
-import { colors, fonts, radius, spacing } from "@/constants/theme";
+import { colors, fonts, radius, spacing, webInputReset } from "@/constants/theme";
 
 import { AppText } from "./app-text";
 
@@ -13,9 +13,12 @@ type FormFieldProps = TextInputProps & {
 // Labelled text input with the standard field styling. Used across all the
 // form screens (add expense, settle up, auth, add friend, create group).
 export const FormField = forwardRef<TextInput, FormFieldProps>(function FormField(
-  { label, error, style, multiline, ...rest },
+  { label, error, style, multiline, onFocus, onBlur, ...rest },
   ref,
 ) {
+  const [focused, setFocused] = useState(false);
+  const borderColor = error ? colors.negative : focused ? colors.primary : colors.borderStrong;
+
   return (
     <View style={styles.wrap}>
       {label ? (
@@ -27,12 +30,15 @@ export const FormField = forwardRef<TextInput, FormFieldProps>(function FormFiel
         ref={ref}
         placeholderTextColor={colors.textFaint}
         multiline={multiline}
-        style={[
-          styles.input,
-          multiline && styles.multiline,
-          !!error && styles.inputError,
-          style,
-        ]}
+        onFocus={(e) => {
+          setFocused(true);
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          onBlur?.(e);
+        }}
+        style={[styles.input, { borderColor }, multiline && styles.multiline, webInputReset, style]}
         {...rest}
       />
       {error ? (
@@ -65,8 +71,5 @@ const styles = StyleSheet.create({
     minHeight: 72,
     textAlignVertical: "top",
     paddingTop: 12,
-  },
-  inputError: {
-    borderColor: colors.negative,
   },
 });
